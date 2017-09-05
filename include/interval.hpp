@@ -2,8 +2,8 @@
 #define INTERVAL_HPP
 
 #include <ostream>
-
 #include <memory>
+#include <vector>
 
 template<class T> class Interval {
 	T a, b;
