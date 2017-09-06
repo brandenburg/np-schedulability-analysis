@@ -93,7 +93,9 @@ namespace NP {
 
 		bool higher_priority_than(const Job &other) const
 		{
-			return priority < other.priority;
+			return priority < other.priority ||
+			       (priority == other.priority &&
+			        latest_arrival() < other.earliest_arrival());
 		}
 
 		bool priority_at_least_that_of(const Job &other) const
