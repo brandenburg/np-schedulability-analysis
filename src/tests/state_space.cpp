@@ -203,3 +203,61 @@ TEST_CASE("[NP state space] Be eager, with short deadline") {
 	CHECK(space.get_finish_times(jobs[2]).until() ==  35);
 }
 
+
+TEST_CASE("[NP state space] Treat equal-priority jobs correctly") {
+	Uniproc::State_space<dtime_t>::Workload jobs{
+		Job<dtime_t>{1, I(    0,    10),  I( 2,    50),  2000, 1},
+		Job<dtime_t>{2, I(    0,    10),  I(50,  1200),  5000, 2},
+		Job<dtime_t>{3, I( 1000,  1010),  I( 2,    50),  3000, 1},
+	};
+
+	auto nspace = Uniproc::State_space<dtime_t>::explore_naively(jobs);
+	CHECK(nspace.is_schedulable());
+
+	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
+	CHECK(nspace.get_finish_times(jobs[0]).until() ==  1259);
+
+	CHECK(nspace.get_finish_times(jobs[1]).from()  ==  50);
+	CHECK(nspace.get_finish_times(jobs[1]).until() ==  1260);
+
+	CHECK(nspace.get_finish_times(jobs[2]).from()  ==  1002);
+	CHECK(nspace.get_finish_times(jobs[2]).until() ==  1310);
+
+	auto space = Uniproc::State_space<dtime_t>::explore(jobs);
+	CHECK(space.is_schedulable());
+
+	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
+	CHECK(nspace.get_finish_times(jobs[0]).until() ==  1259);
+
+	CHECK(nspace.get_finish_times(jobs[1]).from()  ==  50);
+	CHECK(nspace.get_finish_times(jobs[1]).until() ==  1260);
+
+	CHECK(nspace.get_finish_times(jobs[2]).from()  ==  1002);
+	CHECK(nspace.get_finish_times(jobs[2]).until() ==  1310);
+}
+
+TEST_CASE("[NP state space] Equal-priority simultaneous arrivals") {
+	Uniproc::State_space<dtime_t>::Workload jobs{
+		Job<dtime_t>{1, I(    0,    10),  I(  2,    50),  2000, 1},
+		Job<dtime_t>{2, I(    0,    10),  I(100,   150),  2000, 1},
+	};
+
+	auto nspace = Uniproc::State_space<dtime_t>::explore_naively(jobs);
+	CHECK(nspace.is_schedulable());
+
+	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
+	CHECK(nspace.get_finish_times(jobs[0]).until() ==  10 + 150 + 50);
+
+	CHECK(nspace.get_finish_times(jobs[1]).from()  ==  100);
+	CHECK(nspace.get_finish_times(jobs[1]).until() ==  10 + 50 + 150);
+
+	auto space = Uniproc::State_space<dtime_t>::explore(jobs);
+	CHECK(space.is_schedulable());
+
+	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
+	CHECK(nspace.get_finish_times(jobs[0]).until() ==  10 + 150 + 50);
+
+	CHECK(nspace.get_finish_times(jobs[1]).from()  ==  100);
+	CHECK(nspace.get_finish_times(jobs[1]).until() ==  10 + 50 + 150);
+}
+

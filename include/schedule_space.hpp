@@ -314,74 +314,89 @@ namespace NP {
 				return incomplete(s.get_scheduled_jobs(), j);
 			}
 
-			bool identify_next_certainly_released_pending_job(
-				const Job** the_job,
+			// find next time by which a job is certainly released on
+			// or after a given point in time
+			Time next_certain_job_release(
 				Time on_or_after,
-				Time min_priority,
-				const typename Types<Time>::Job_uid_set &already_scheduled,
-				typename Types<Time>::job_uid_t to_exclude)
+				const typename Types<Time>::Job_uid_set &already_scheduled)
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
 				     it != jobs_by_latest_arrival.end(); it++) {
 					const Job& j = *(it->second);
 
-					// irrelevant if not at least of min priority
-					if (!j.priority_at_least(min_priority))
+					// not relevant if already scheduled
+					if (!incomplete(already_scheduled, j))
 						continue;
+
+					// great, this job fits the bill
+					return j.latest_arrival();
+				}
+
+				return Time_model::constants<Time>::infinity();
+			}
+
+			// find next time by which a job of higher priority
+			// is certainly released on or after a given point in time
+			Time next_certain_higher_priority_job_release(
+				Time on_or_after,
+				const typename Types<Time>::Job_uid_set &already_scheduled,
+				const Job& reference_job)
+			{
+				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
+				     it != jobs_by_latest_arrival.end(); it++) {
+					const Job& j = *(it->second);
 
 					// not relevant if already scheduled
 					if (!incomplete(already_scheduled, j))
 						continue;
 
-					// Skip the to-be-excluded job
-					if (Types<Time>::uid_of(j) == to_exclude)
+					// irrelevant if not of sufficient priority
+					if (!j.higher_priority_than(reference_job))
 						continue;
 
 					// great, this job fits the bill
-					*the_job = &j;
-					return true;
+					return j.latest_arrival();
 				}
 
+				return Time_model::constants<Time>::infinity();
+			}
+
+
+			// returns true if there is certainly some pending job at the given
+			// time ready to be scheduled
+			bool exists_certainly_released_job(Time at,
+				typename Types<Time>::Job_uid_set already_scheduled)
+			{
+				for (const Job& j : jobs_by_win.lookup(at))
+					if (j.latest_arrival() <= at &&
+					    incomplete(already_scheduled, j)) {
+						return true;
+					}
 				return false;
 			}
 
-			Time next_pending_job_certainly_released_at(
-				Time on_or_after,
-				Time min_priority,
-				const typename Types<Time>::Job_uid_set &already_scheduled,
-				typename Types<Time>::job_uid_t to_exclude = nullptr)
-			{
-				const Job* j;
-				if (identify_next_certainly_released_pending_job(
-				         &j, on_or_after, min_priority, already_scheduled,
-				         to_exclude))
-					return j->latest_arrival();
-				else
-					return Time_model::constants<Time>::infinity();
-			}
-
-			Time highest_priority_certainly_pending(
+			// returns true if there is certainly some pending job of higher
+			// priority at the given time ready to be scheduled
+			bool exists_certainly_released_higher_prio_job(
 				Time at,
 				typename Types<Time>::Job_uid_set already_scheduled,
-				typename Types<Time>::job_uid_t to_exclude = nullptr)
+				const Job& reference_job)
 			{
-				Time max_prio = Time_model::constants<Time>::infinity();
 				for (const Job& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at &&
-					    Types<Time>::uid_of(j) != to_exclude &&
-					    incomplete(already_scheduled, j))
-						max_prio = std::min(max_prio, j.get_priority());
-				return max_prio;
+					    &j != &reference_job &&
+					    incomplete(already_scheduled, j) &&
+					    j.higher_priority_than(reference_job)) {
+						return true;
+					}
+				return false;
 			}
 
 			bool priority_eligible(const State &s, const Job &j)
 			{
 				auto t_s = s.next_earliest_start_time(j);
-				auto min_prio = highest_priority_certainly_pending(
-				                    t_s, s.get_scheduled_jobs(),
-				                    Types<Time>::uid_of(j));
-				DM("    ::: min_prio = " << min_prio << std::endl);
-				return j.priority_at_least(min_prio);
+				return !exists_certainly_released_higher_prio_job(
+				            t_s, s.get_scheduled_jobs(), j);
 			}
 
 			bool potentially_next(const State &s, const Job &j)
@@ -389,19 +404,16 @@ namespace NP {
 				auto t_latest = s.latest_finish_time();
 				if (t_latest < j.earliest_arrival()) {
 					// any certainly pending at t_latest
-					Time p = highest_priority_certainly_pending(
-				                    t_latest, s.get_scheduled_jobs());
-				    // if something is certainly pending at t_latest, then
-				    // j can't be next
-				    // check with IIP: TBD
-				    if (p != Time_model::constants<Time>::infinity())
-				    	return false;
+					if (exists_certainly_released_job(
+					        t_latest, s.get_scheduled_jobs()))
+						// if something is certainly pending at t_latest, then
+						// j can't be next
+						// check with IIP: TBD
+						return false;
 
 					// any certainly pending since then
-					Time r = next_pending_job_certainly_released_at(
-					                t_latest, Time_model::constants<Time>::infinity(),
-					                s.get_scheduled_jobs(),
-					                Types<Time>::uid_of(j));
+					Time r = next_certain_job_release(t_latest,
+					                                  s.get_scheduled_jobs());
 					// if something else is certainly released before j, then
 					// j can't possibly be next
 					// check with IIP: TBD
@@ -414,15 +426,15 @@ namespace NP {
 			bool is_eligible_successor(const State &s, const Job &j)
 			{
 				if (!incomplete(s, j)) {
-					DM("    :-( not incomplete" <<  std::endl);
+					DM("    * not incomplete" <<  std::endl);
 					return false;
 				}
 				if (!priority_eligible(s, j)) {
-					DM("    :-( not priority eligible" <<  std::endl);
+					DM("    * not priority eligible" <<  std::endl);
 					return false;
 				}
 				if (!potentially_next(s, j)) {
-					DM("    :-( not potentially next" <<  std::endl);
+					DM("    * not potentially next" <<  std::endl);
 					return false;
 				}
 				return true;
@@ -456,13 +468,13 @@ namespace NP {
 				return !todo.empty();
 			}
 
+			// naive: no state merging
 			void schedule_naively(const State &s, const Job &j)
 			{
-				// naive: no state merging
 				Time other_certain_start =
-					next_pending_job_certainly_released_at(
-						s.next_earliest_start_time(j), j.get_priority(),
-						s.get_scheduled_jobs(), Types<Time>::uid_of(j));
+					next_certain_higher_priority_job_release(
+						s.next_earliest_start_time(j),
+						s.get_scheduled_jobs(), j);
 				DM("nest=" << s.next_earliest_start_time(j) << std::endl);
 				DM("other_certain_start=" << other_certain_start << std::endl);
 				const State& next = new_state(s.schedule(j, other_certain_start));
@@ -485,10 +497,9 @@ namespace NP {
 					// Identify relevant interval for next job
 					// relevant job buckets
 					auto ts_min = s.earliest_finish_time();
-					auto latest_idle =
-						next_pending_job_certainly_released_at(
-							ts_min, Time_model::constants<Time>::infinity() /* any prio */,
-							s.get_scheduled_jobs());
+					auto latest_idle = next_certain_job_release(ts_min,
+					                                  s.get_scheduled_jobs());
+					// TBD: latest_idle depends on IIP
 
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};
@@ -546,9 +557,9 @@ namespace NP {
 
 				if (r.first != r.second) {
 					Time other_certain_start =
-						next_pending_job_certainly_released_at(
-							s.next_earliest_start_time(j), j.get_priority(),
-							s.get_scheduled_jobs(), Types<Time>::uid_of(j));
+						next_certain_higher_priority_job_release(
+							s.next_earliest_start_time(j),
+							s.get_scheduled_jobs(), j);
 					auto eft = s.next_earliest_finish_time(j);
 					auto lft = s.next_latest_finish_time(j, other_certain_start);
 					auto ftimes = Interval<Time>{eft, lft};
@@ -581,10 +592,9 @@ namespace NP {
 					// Identify relevant interval for next job
 					// relevant job buckets
 					auto ts_min = s.earliest_finish_time();
-					auto latest_idle =
-						next_pending_job_certainly_released_at(
-							ts_min, Time_model::constants<Time>::infinity() /* any prio */,
-							s.get_scheduled_jobs());
+					auto latest_idle = next_certain_job_release(ts_min,
+					                                  s.get_scheduled_jobs());
+					// TBD: latest_idle depends on IIP
 
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};
