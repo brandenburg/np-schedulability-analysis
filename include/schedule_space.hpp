@@ -31,8 +31,7 @@ namespace NP {
 		{
 			public:
 
-			typedef Job<Time> Job;
-			typedef std::vector<Job> Workload;
+			typedef std::vector<Job<Time>> Workload;
 			typedef Schedule_state<Time> State;
 
 			static State_space explore_naively(
@@ -53,7 +52,7 @@ namespace NP {
 				return s;
 			}
 
-			Interval<Time> get_finish_times(const Job& j) const
+			Interval<Time> get_finish_times(const Job<Time>& j) const
 			{
 				auto rbounds = rta.find(&j);
 				if (rbounds == rta.end()) {
@@ -76,7 +75,7 @@ namespace NP {
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 
 			struct Edge {
-				const Job* scheduled;
+				const Job<Time>* scheduled;
 				const State* source;
 				const State* target;
 			};
@@ -94,20 +93,20 @@ namespace NP {
 #endif
 			private:
 
-			typedef std::unordered_set<const Job*> Job_uid_set;
+			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
 
 			typedef State* State_ref;
 			typedef std::list<State> States;
 			typedef std::unordered_map<hash_value_t, State_ref> States_map;
 
-			typedef const Job* Job_ref;
+			typedef const Job<Time>* Job_ref;
 			typedef std::multimap<Time, Job_ref> By_time_map;
 
 			typedef std::deque<State_ref> Todo_queue;
 
-			typedef Interval_lookup_table<Time, Job, Job::scheduling_window> Jobs_lut;
+			typedef Interval_lookup_table<Time, Job<Time>, Job<Time>::scheduling_window> Jobs_lut;
 
-			typedef std::unordered_map<const Job*, Interval<Time> > Response_times;
+			typedef std::unordered_map<const Job<Time>*, Interval<Time> > Response_times;
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 			std::list<Edge> edges;
@@ -133,7 +132,7 @@ namespace NP {
 			              max_deadline(jobs) / num_buckets),
 			  jobs(jobs), aborted(false)
 			{
-				for (const Job& j : jobs) {
+				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
 					jobs_by_earliest_arrival.insert({j.earliest_arrival(), &j});
 					jobs_by_win.insert(j);
@@ -152,7 +151,7 @@ namespace NP {
 			}
 
 
-			void update_finish_times(const Job& j, Interval<Time> range)
+			void update_finish_times(const Job<Time>& j, Interval<Time> range)
 			{
 				auto rbounds = rta.find(&j);
 				if (rbounds == rta.end()) {
@@ -167,12 +166,12 @@ namespace NP {
 				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);
 			}
 
-			static bool incomplete(const Job_uid_set &scheduled, const Job& j)
+			static bool incomplete(const Job_uid_set &scheduled, const Job<Time>& j)
 			{
 				return scheduled.find(&j) == scheduled.end();
 			}
 
-			static bool incomplete(const State& s, const Job& j)
+			static bool incomplete(const State& s, const Job<Time>& j)
 			{
 				return incomplete(s.get_scheduled_jobs(), j);
 			}
@@ -185,7 +184,7 @@ namespace NP {
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
 				     it != jobs_by_latest_arrival.end(); it++) {
-					const Job& j = *(it->second);
+					const Job<Time>& j = *(it->second);
 
 					// not relevant if already scheduled
 					if (!incomplete(already_scheduled, j))
@@ -203,11 +202,11 @@ namespace NP {
 			Time next_certain_higher_priority_job_release(
 				Time on_or_after,
 				const Job_uid_set &already_scheduled,
-				const Job& reference_job)
+				const Job<Time>& reference_job)
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
 				     it != jobs_by_latest_arrival.end(); it++) {
-					const Job& j = *(it->second);
+					const Job<Time>& j = *(it->second);
 
 					// not relevant if already scheduled
 					if (!incomplete(already_scheduled, j))
@@ -230,7 +229,7 @@ namespace NP {
 			bool exists_certainly_released_job(Time at,
 				Job_uid_set already_scheduled)
 			{
-				for (const Job& j : jobs_by_win.lookup(at))
+				for (const Job<Time>& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at &&
 					    incomplete(already_scheduled, j)) {
 						return true;
@@ -243,9 +242,9 @@ namespace NP {
 			bool exists_certainly_released_higher_prio_job(
 				Time at,
 				Job_uid_set already_scheduled,
-				const Job& reference_job)
+				const Job<Time>& reference_job)
 			{
-				for (const Job& j : jobs_by_win.lookup(at))
+				for (const Job<Time>& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at &&
 					    &j != &reference_job &&
 					    incomplete(already_scheduled, j) &&
@@ -255,14 +254,14 @@ namespace NP {
 				return false;
 			}
 
-			bool priority_eligible(const State &s, const Job &j)
+			bool priority_eligible(const State &s, const Job<Time> &j)
 			{
 				auto t_s = s.next_earliest_start_time(j);
 				return !exists_certainly_released_higher_prio_job(
 				            t_s, s.get_scheduled_jobs(), j);
 			}
 
-			bool potentially_next(const State &s, const Job &j)
+			bool potentially_next(const State &s, const Job<Time> &j)
 			{
 				auto t_latest = s.latest_finish_time();
 				if (t_latest < j.earliest_arrival()) {
@@ -286,7 +285,7 @@ namespace NP {
 				return true;
 			}
 
-			bool is_eligible_successor(const State &s, const Job &j)
+			bool is_eligible_successor(const State &s, const Job<Time> &j)
 			{
 				if (!incomplete(s, j)) {
 					DM("    * not incomplete" <<  std::endl);
@@ -332,7 +331,7 @@ namespace NP {
 			}
 
 			// naive: no state merging
-			void schedule_naively(const State &s, const Job &j)
+			void schedule_naively(const State &s, const Job<Time> &j)
 			{
 				Time other_certain_start =
 					next_certain_higher_priority_job_release(
@@ -372,7 +371,7 @@ namespace NP {
 					bool found_at_least_one = false;
 
 					// (1) first check jobs that can be already pending
-					for (const Job& j : jobs_by_win.lookup(ts_min)) {
+					for (const Job<Time>& j : jobs_by_win.lookup(ts_min)) {
 						DM("    -?? " << j << std::endl);
 						// if it is potentially active in the range of
 						// interest...
@@ -388,7 +387,7 @@ namespace NP {
 					// (2) check jobs that are released later in the interval
 					for (auto it = jobs_by_earliest_arrival.upper_bound(ts_min);
 					     it != jobs_by_earliest_arrival.end(); it++) {
-						const Job& j = *it->second;
+						const Job<Time>& j = *it->second;
 						// stop looking once we've left the range of interest
 						DM("    -?? " << j << std::endl);
 						if (!j.scheduling_window().intersects(next_range))
@@ -412,7 +411,7 @@ namespace NP {
 			}
 
 
-			void schedule(const State &s, const Job &j)
+			void schedule(const State &s, const Job<Time> &j)
 			{
 				auto k = s.next_key(j);
 
@@ -467,7 +466,7 @@ namespace NP {
 					bool found_at_least_one = false;
 
 					// (1) first check jobs that can be already pending
-					for (const Job& j : jobs_by_win.lookup(ts_min)) {
+					for (const Job<Time>& j : jobs_by_win.lookup(ts_min)) {
 						DM("    -?? " << j << std::endl);
 						// if it is potentially active in the range of
 						// interest...
@@ -484,7 +483,7 @@ namespace NP {
 					// (2) check jobs that are released later in the interval
 					for (auto it = jobs_by_earliest_arrival.upper_bound(ts_min);
 					     it != jobs_by_earliest_arrival.end(); it++) {
-						const Job& j = *it->second;
+						const Job<Time>& j = *it->second;
 						// stop looking once we've left the range of interest
 						DM("    -?? " << j << std::endl);
 						if (!j.scheduling_window().intersects(next_range))
