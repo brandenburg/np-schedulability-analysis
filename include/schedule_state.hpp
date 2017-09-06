@@ -8,35 +8,24 @@
 
 namespace NP {
 
-	template<class Time> struct Types
-	{
-		typedef const Job<Time>* job_uid_t;
-
-		typedef std::unordered_set<job_uid_t> Job_uid_set;
-
-		static job_uid_t uid_of(const Job<Time>& job)
-		{
-			return &job;
-		}
-
-	};
-
 	// use pointers as a primitive form of unique ID
 
 	namespace Uniproc {
 
-
 		template<class Time> class Schedule_state
 		{
+			public:
+
+			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+
 			private:
 
 			Interval<Time> finish_time;
 
-			typename Types<Time>::Job_uid_set scheduled_jobs;
+			Job_uid_set scheduled_jobs;
 			hash_value_t lookup_key;
 
-			Schedule_state(Time eft, Time lft,
-						   const typename Types<Time>::Job_uid_set &jobs,
+			Schedule_state(Time eft, Time lft, const Job_uid_set &jobs,
 						   hash_value_t k)
 			: finish_time{eft, lft}, scheduled_jobs{jobs}, lookup_key{k}
 			{
@@ -46,7 +35,7 @@ namespace NP {
 
 			static Schedule_state initial_state()
 			{
-				return Schedule_state{0, 0, typename Types<Time>::Job_uid_set(), 0};
+				return Schedule_state{0, 0, Job_uid_set(), 0};
 			}
 
 			Time earliest_finish_time() const
@@ -75,7 +64,7 @@ namespace NP {
 				return lookup_key;
 			}
 
-			const typename Types<Time>::Job_uid_set& get_scheduled_jobs() const
+			const Job_uid_set& get_scheduled_jobs() const
 			{
 				return scheduled_jobs;
 			}
@@ -131,7 +120,7 @@ namespace NP {
 				Time lft = next_latest_finish_time(j, other_certain_start);
 				DM("eft:" << eft << " lft:" << lft << std::endl);
 				Schedule_state next(eft, lft, scheduled_jobs, next_key(j));
-				next.scheduled_jobs.insert(Types<Time>::uid_of(j));
+				next.scheduled_jobs.insert(&j);
 				return next;
 			}
 

@@ -55,7 +55,7 @@ namespace NP {
 
 			Interval<Time> get_finish_times(const Job& j) const
 			{
-				auto rbounds = rta.find(Types<Time>::uid_of(j));
+				auto rbounds = rta.find(&j);
 				if (rbounds == rta.end()) {
 					return Interval<Time>{0, Time_model::constants<Time>::infinity()};
 				} else {
@@ -94,6 +94,8 @@ namespace NP {
 #endif
 			private:
 
+			typedef std::unordered_set<const Job*> Job_uid_set;
+
 			typedef State* State_ref;
 			typedef std::list<State> States;
 			typedef std::unordered_map<hash_value_t, State_ref> States_map;
@@ -105,7 +107,7 @@ namespace NP {
 
 			typedef Interval_lookup_table<Time, Job, Job::scheduling_window> Jobs_lut;
 
-			typedef std::unordered_map<typename Types<Time>::job_uid_t, Interval<Time> > Response_times;
+			typedef std::unordered_map<const Job*, Interval<Time> > Response_times;
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 			std::list<Edge> edges;
@@ -152,9 +154,9 @@ namespace NP {
 
 			void update_finish_times(const Job& j, Interval<Time> range)
 			{
-				auto rbounds = rta.find(Types<Time>::uid_of(j));
+				auto rbounds = rta.find(&j);
 				if (rbounds == rta.end()) {
-					rta.emplace(std::make_pair(Types<Time>::uid_of(j), range));
+					rta.emplace(std::make_pair(&j, range));
 					if (!(range.upto() < j.get_deadline()))
 						aborted = true;
 				} else {
@@ -162,12 +164,12 @@ namespace NP {
 					if (!(rbounds->second.upto() < j.get_deadline()))
 						aborted = true;
 				}
-				DM("RTA " << j.get_id() << ": " << rta.find(Types<Time>::uid_of(j))->second << std::endl);
+				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);
 			}
 
-			static bool incomplete(const typename Types<Time>::Job_uid_set &scheduled, const Job& j)
+			static bool incomplete(const Job_uid_set &scheduled, const Job& j)
 			{
-				return scheduled.find(Types<Time>::uid_of(j)) == scheduled.end();
+				return scheduled.find(&j) == scheduled.end();
 			}
 
 			static bool incomplete(const State& s, const Job& j)
@@ -179,7 +181,7 @@ namespace NP {
 			// or after a given point in time
 			Time next_certain_job_release(
 				Time on_or_after,
-				const typename Types<Time>::Job_uid_set &already_scheduled)
+				const Job_uid_set &already_scheduled)
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
 				     it != jobs_by_latest_arrival.end(); it++) {
@@ -200,7 +202,7 @@ namespace NP {
 			// is certainly released on or after a given point in time
 			Time next_certain_higher_priority_job_release(
 				Time on_or_after,
-				const typename Types<Time>::Job_uid_set &already_scheduled,
+				const Job_uid_set &already_scheduled,
 				const Job& reference_job)
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
@@ -226,7 +228,7 @@ namespace NP {
 			// returns true if there is certainly some pending job at the given
 			// time ready to be scheduled
 			bool exists_certainly_released_job(Time at,
-				typename Types<Time>::Job_uid_set already_scheduled)
+				Job_uid_set already_scheduled)
 			{
 				for (const Job& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at &&
@@ -240,7 +242,7 @@ namespace NP {
 			// priority at the given time ready to be scheduled
 			bool exists_certainly_released_higher_prio_job(
 				Time at,
-				typename Types<Time>::Job_uid_set already_scheduled,
+				Job_uid_set already_scheduled,
 				const Job& reference_job)
 			{
 				for (const Job& j : jobs_by_win.lookup(at))
