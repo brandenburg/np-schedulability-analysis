@@ -528,15 +528,20 @@ namespace NP {
 					}
 					for (auto e : space.get_edges()) {
 						out << "\tS" << state_id[e.source]
-							<< " -> "
-							<< "S" << state_id[e.target]
-							<< "[label=\""
-							<< "T" << e.scheduled->get_task_id()
-							<< " J" << e.scheduled->get_id()
-							<< "\\nDL=" << e.scheduled->get_deadline()
-							<< "\"]"
-							<< ";"
-							<< std::endl;
+						    << " -> "
+						    << "S" << state_id[e.target]
+						    << "[label=\""
+						    << "T" << e.scheduled->get_task_id()
+						    << " J" << e.scheduled->get_id()
+						    << "\\nDL=" << e.scheduled->get_deadline()
+						    << "\"";
+						if (e.target->latest_finish_time()
+						    >= e.scheduled->get_deadline()) {
+							out << ",color=Red,fontcolor=Red";
+						}
+						out << "]"
+						    << ";"
+						    << std::endl;
 					}
 					out << "}" << std::endl;
 				return out;
