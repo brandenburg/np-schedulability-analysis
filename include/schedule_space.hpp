@@ -636,6 +636,40 @@ namespace NP {
 					}
 				}
 			}
+
+#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
+			friend std::ostream& operator<< (std::ostream& out,
+			                                 const State_space<Time>& space)
+			{
+					std::map<const Schedule_state<Time>*, unsigned int> state_id;
+					unsigned int i = 0;
+					out << "digraph {" << std::endl;
+					for (const Schedule_state<Time>& s : space.get_states()) {
+						state_id[&s] = i++;
+						out << "\tS" << state_id[&s]
+							<< "[label=\"S" << state_id[&s] << ": ["
+							<< s.earliest_finish_time()
+							<< ", "
+							<< s.latest_finish_time()
+							<< "]\"];"
+							<< std::endl;
+					}
+					for (auto e : space.get_edges()) {
+						out << "\tS" << state_id[e.source]
+							<< " -> "
+							<< "S" << state_id[e.target]
+							<< "[label=\""
+							<< "T" << e.scheduled->get_task_id()
+							<< " J" << e.scheduled->get_id()
+							<< "\\nDL=" << e.scheduled->get_deadline()
+							<< "\"]"
+							<< ";"
+							<< std::endl;
+					}
+					out << "}" << std::endl;
+				return out;
+			}
+#endif
 		};
 
 	}
