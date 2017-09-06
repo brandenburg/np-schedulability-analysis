@@ -17,6 +17,8 @@
 // DM : debug message -- disable for now
 #define DM(x)
 
+#define CONFIG_COLLECT_SCHEDULE_GRAPH
+
 namespace NP {
 
 	template<class Time> struct Types
@@ -209,7 +211,25 @@ namespace NP {
 				return states.size();
 			}
 
+#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 
+			struct Edge {
+				const Job* scheduled;
+				const State* source;
+				const State* target;
+			};
+
+			const std::list<Edge>& get_edges() const
+			{
+				return edges;
+			}
+
+			const std::list<State>& get_states() const
+			{
+				return states;
+			}
+
+#endif
 			private:
 
 			typedef State* State_ref;
@@ -225,7 +245,9 @@ namespace NP {
 
 			typedef std::unordered_map<typename Types<Time>::job_uid_t, Interval<Time> > Response_times;
 
-
+#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
+			std::list<Edge> edges;
+#endif
 
 			Response_times rta;
 			bool aborted;
@@ -389,23 +411,37 @@ namespace NP {
 
 			bool is_eligible_successor(const State &s, const Job &j)
 			{
-				return incomplete(s, j) // Not yet scheduled
-				       && priority_eligible(s, j)
-				       && potentially_next(s, j);
+				if (!incomplete(s, j)) {
+					DM("    :-( not incomplete" <<  std::endl);
+					return false;
+				}
+				if (!priority_eligible(s, j)) {
+					DM("    :-( not priority eligible" <<  std::endl);
+					return false;
+				}
+				if (!potentially_next(s, j)) {
+					DM("    :-( not potentially next" <<  std::endl);
+					return false;
+				}
+				return true;
+
+// 				return incomplete(s, j) // Not yet scheduled
+// 				       && priority_eligible(s, j)
+// 				       && potentially_next(s, j);
 
 				// IIP eligible: TBD
 			}
 
 			State& new_state(State&& s)
 			{
-				states.emplace_front(s);
-				State& s_ref = states.front();
+				states.emplace_back(s);
+				State& s_ref = states.back();
 				todo.push_back(&s_ref);
 				states_by_key.insert(std::make_pair(s_ref.get_key(), &s_ref));
 				return s_ref;
 			}
 
-			auto next_state()
+			const State& next_state()
 			{
 				assert(!todo.empty());
 				auto s = todo.front();
@@ -430,6 +466,9 @@ namespace NP {
 				auto next = new_state(s.schedule(j, other_certain_start));
 				// update response times
 				update_finish_times(j, next.finish_range());
+#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
+				edges.emplace_back(Edge{&j, &s, &next});
+#endif
 			}
 
 			void explore_naively()
@@ -517,6 +556,9 @@ namespace NP {
 
 							update_finish_times(j, ftimes);
 							it->second->update_finish_range(ftimes);
+#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
+							edges.emplace_back(Edge{&j, &s, it->second});
+#endif
 							return;
 						}
 					}
