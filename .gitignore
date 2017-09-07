@@ -3,3 +3,6 @@ build/
 runtests
 nptest
 *~
+*.dot
+*.pdf
+comparison/
