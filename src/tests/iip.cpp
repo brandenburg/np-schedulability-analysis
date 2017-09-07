@@ -25,11 +25,11 @@ TEST_CASE("[IIP] P-RM example")
 		Job<dtime_t>{6, I(50, 50), I(1, 1), 60, 1, 1},
 
 		// middle task
-		Job<dtime_t>{7, I( 0,  0), I(8, 8), 30, 2, 2},
-		Job<dtime_t>{8, I(30, 30), I(8, 8), 60, 2, 2},
+		Job<dtime_t>{1, I( 0,  0), I(8, 8), 30, 2, 2},
+		Job<dtime_t>{2, I(30, 30), I(8, 8), 60, 2, 2},
 
 		// the long task
-		Job<dtime_t>{9, I( 0,  0), I(17, 17), 60, 3, 3}
+		Job<dtime_t>{1, I( 0,  0), I(17, 17), 60, 3, 3}
 	};
 
 	SUBCASE("RM, naive exploration") {
@@ -50,6 +50,51 @@ TEST_CASE("[IIP] P-RM example")
 	SUBCASE("P-RM, exploration with state-merging") {
 		auto space = Uniproc::State_space<dtime_t, Uniproc::Precatious_RM_IIP<dtime_t>>::explore(jobs);
 		CHECK(space.is_schedulable());
+	}
+
+}
+
+
+TEST_CASE("[IIP] P-RM negative example")
+{
+	Uniproc::State_space<dtime_t>::Workload jobs{
+		// high-frequency task tau_1
+		Job<dtime_t>{1, I( 0,  0), I(3, 3), 10, 1, 1},
+		Job<dtime_t>{2, I(10, 10), I(3, 3), 20, 1, 1},
+		Job<dtime_t>{3, I(20, 20), I(3, 3), 30, 1, 1},
+		Job<dtime_t>{4, I(30, 30), I(3, 3), 40, 1, 1},
+		Job<dtime_t>{5, I(40, 40), I(3, 3), 50, 1, 1},
+		Job<dtime_t>{6, I(50, 50), I(3, 3), 60, 1, 1},
+
+		// middle task
+		Job<dtime_t>{1, I( 0,  0), I(6, 6), 12, 2, 2},
+		Job<dtime_t>{2, I(12, 12), I(6, 6), 24, 2, 2},
+		Job<dtime_t>{3, I(24, 24), I(6, 6), 36, 2, 2},
+		Job<dtime_t>{4, I(36, 36), I(6, 6), 48, 2, 2},
+		Job<dtime_t>{5, I(48, 48), I(6, 6), 60, 2, 2},
+
+		// the long task
+		Job<dtime_t>{1, I( 0,  0), I(17, 17), 60, 3, 3}
+	};
+
+	SUBCASE("RM, naive exploration") {
+		auto space = Uniproc::State_space<dtime_t>::explore_naively(jobs);
+		CHECK(!space.is_schedulable());
+	}
+
+	SUBCASE("RM, exploration with state-merging") {
+		auto space = Uniproc::State_space<dtime_t>::explore(jobs);
+		CHECK(!space.is_schedulable());
+	}
+
+	SUBCASE("P-RM, naive exploration") {
+		auto space = Uniproc::State_space<dtime_t, Uniproc::Precatious_RM_IIP<dtime_t>>::explore_naively(jobs);
+		CHECK(!space.is_schedulable());
+	}
+
+	SUBCASE("P-RM, exploration with state-merging") {
+		auto space = Uniproc::State_space<dtime_t, Uniproc::Precatious_RM_IIP<dtime_t>>::explore(jobs);
+		CHECK(!space.is_schedulable());
 	}
 
 }
