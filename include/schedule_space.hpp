@@ -162,11 +162,11 @@ namespace NP {
 				auto rbounds = rta.find(&j);
 				if (rbounds == rta.end()) {
 					rta.emplace(std::make_pair(&j, range));
-					if (!(range.upto() < j.get_deadline()))
+					if (range.upto() > j.get_deadline())
 						aborted = true;
 				} else {
 					rbounds->second.widen(range);
-					if (!(rbounds->second.upto() < j.get_deadline()))
+					if (rbounds->second.upto() > j.get_deadline())
 						aborted = true;
 				}
 				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);
@@ -558,12 +558,18 @@ namespace NP {
 						    << "\\nDL=" << e.scheduled->get_deadline()
 						    << "\"";
 						if (e.target->latest_finish_time()
-						    >= e.scheduled->get_deadline()) {
+						    > e.scheduled->get_deadline()) {
 							out << ",color=Red,fontcolor=Red";
 						}
 						out << "]"
 						    << ";"
 						    << std::endl;
+						if (e.target->latest_finish_time()
+						    > e.scheduled->get_deadline()) {
+							out << "S" << state_id[e.target]
+								<< "[color=Red];"
+								<< std::endl;
+							}
 					}
 					out << "}" << std::endl;
 				return out;
