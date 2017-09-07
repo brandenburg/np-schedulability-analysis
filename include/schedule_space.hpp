@@ -27,7 +27,10 @@ namespace NP {
 
 	namespace Uniproc {
 
-		template<class Time> class State_space
+		template<class Time> class Null_IIP;
+		template<class Time> class Precatious_RM_IIP;
+
+		template<class Time, class IIP = Null_IIP<Time>> class State_space
 		{
 			public:
 
@@ -112,6 +115,9 @@ namespace NP {
 			std::list<Edge> edges;
 #endif
 
+			IIP iip;
+			friend class Precatious_RM_IIP<Time>;
+
 			Response_times rta;
 			bool aborted;
 
@@ -130,7 +136,7 @@ namespace NP {
 			            std::size_t num_buckets = 1000)
 			: jobs_by_win(Interval<Time>{0, max_deadline(jobs)},
 			              max_deadline(jobs) / num_buckets),
-			  jobs(jobs), aborted(false)
+			  jobs(jobs), aborted(false), iip(*this, jobs)
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -190,6 +196,12 @@ namespace NP {
 					if (!incomplete(already_scheduled, j))
 						continue;
 
+					// If the job is not IIP-eligible when it is certainly
+					// released, then there exists a schedule where it doesn't
+					// count, so skip it.
+					if (!iip.eligible(j, j.latest_arrival(), already_scheduled))
+						continue;
+
 					// great, this job fits the bill
 					return j.latest_arrival();
 				}
@@ -230,8 +242,9 @@ namespace NP {
 				Job_uid_set already_scheduled)
 			{
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
-					if (j.latest_arrival() <= at &&
-					    incomplete(already_scheduled, j)) {
+					if (j.latest_arrival() <= at
+					    && incomplete(already_scheduled, j)
+					    && iip.eligible(j, at, already_scheduled)) {
 						return true;
 					}
 				return false;
@@ -254,9 +267,8 @@ namespace NP {
 				return false;
 			}
 
-			bool priority_eligible(const State &s, const Job<Time> &j)
+			bool priority_eligible(Time t_s, const State &s, const Job<Time> &j)
 			{
-				auto t_s = s.next_earliest_start_time(j);
 				return !exists_certainly_released_higher_prio_job(
 				            t_s, s.get_scheduled_jobs(), j);
 			}
@@ -268,17 +280,16 @@ namespace NP {
 					// any certainly pending at t_latest
 					if (exists_certainly_released_job(
 					        t_latest, s.get_scheduled_jobs()))
-						// if something is certainly pending at t_latest, then
-						// j can't be next
-						// check with IIP: TBD
+						// if something is certainly pending at t_latest and
+						// IIP-eligible, then j can't be next
 						return false;
 
 					// any certainly pending since then
 					Time r = next_certain_job_release(t_latest,
 					                                  s.get_scheduled_jobs());
-					// if something else is certainly released before j, then
-					// j can't possibly be next
-					// check with IIP: TBD
+					// if something else is certainly released before j and IIP-
+					// eligible at the time of certain release, then j can't
+					// possibly be next
 					if (r < j.earliest_arrival())
 						return false;
 				}
@@ -291,7 +302,8 @@ namespace NP {
 					DM("    * not incomplete" <<  std::endl);
 					return false;
 				}
-				if (!priority_eligible(s, j)) {
+				auto t_s = s.next_earliest_start_time(j);
+				if (!priority_eligible(t_s, s, j)) {
 					DM("    * not priority eligible" <<  std::endl);
 					return false;
 				}
@@ -299,13 +311,16 @@ namespace NP {
 					DM("    * not potentially next" <<  std::endl);
 					return false;
 				}
+				if (!iip.eligible(j, t_s, s.get_scheduled_jobs())) {
+					DM("    * not IIP eligible" << std::endl);
+					return false;
+				}
 				return true;
 
 // 				return incomplete(s, j) // Not yet scheduled
 // 				       && priority_eligible(s, j)
-// 				       && potentially_next(s, j);
-
-				// IIP eligible: TBD
+// 				       && potentially_next(s, j)
+// 				       && iip.eligible(s, j);
 			}
 
 			State& new_state(State&& s)
@@ -333,13 +348,18 @@ namespace NP {
 			// naive: no state merging
 			void schedule_naively(const State &s, const Job<Time> &j)
 			{
+				auto t_s = s.next_earliest_start_time(j);
+
 				Time other_certain_start =
 					next_certain_higher_priority_job_release(
-						s.next_earliest_start_time(j),
-						s.get_scheduled_jobs(), j);
+						t_s, s.get_scheduled_jobs(), j);
+				Time iip_latest_start =
+					iip.latest_start(j, t_s, s.get_scheduled_jobs());
+
 				DM("nest=" << s.next_earliest_start_time(j) << std::endl);
 				DM("other_certain_start=" << other_certain_start << std::endl);
-				const State& next = new_state(s.schedule(j, other_certain_start));
+				const State& next = new_state(
+					s.schedule(j, other_certain_start, iip_latest_start));
 				// update response times
 				update_finish_times(j, next.finish_range());
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -361,7 +381,6 @@ namespace NP {
 					auto ts_min = s.earliest_finish_time();
 					auto latest_idle = next_certain_job_release(ts_min,
 					                                  s.get_scheduled_jobs());
-					// TBD: latest_idle depends on IIP
 
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};
@@ -418,12 +437,16 @@ namespace NP {
 				auto r = states_by_key.equal_range(k);
 
 				if (r.first != r.second) {
+					auto t_s = s.next_earliest_start_time(j);
+
 					Time other_certain_start =
 						next_certain_higher_priority_job_release(
-							s.next_earliest_start_time(j),
-							s.get_scheduled_jobs(), j);
+							t_s, s.get_scheduled_jobs(), j);
+					Time iip_latest_start =
+						iip.latest_start(j, t_s, s.get_scheduled_jobs());
 					auto eft = s.next_earliest_finish_time(j);
-					auto lft = s.next_latest_finish_time(j, other_certain_start);
+					auto lft = s.next_latest_finish_time(j,
+						other_certain_start, iip_latest_start);
 					auto ftimes = Interval<Time>{eft, lft};
 
 					for (auto it = r.first; it != r.second; it++) {
@@ -456,7 +479,6 @@ namespace NP {
 					auto ts_min = s.earliest_finish_time();
 					auto latest_idle = next_certain_job_release(ts_min,
 					                                  s.get_scheduled_jobs());
-					// TBD: latest_idle depends on IIP
 
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};
@@ -511,7 +533,7 @@ namespace NP {
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 			friend std::ostream& operator<< (std::ostream& out,
-			                                 const State_space<Time>& space)
+			                                 const State_space<Time, IIP>& space)
 			{
 					std::map<const Schedule_state<Time>*, unsigned int> state_id;
 					unsigned int i = 0;
@@ -548,6 +570,91 @@ namespace NP {
 			}
 #endif
 		};
+
+		template<class Time> class Null_IIP
+		{
+			public:
+
+			typedef Schedule_state<Time> State;
+			typedef State_space<Time, Null_IIP> Space;
+			typedef typename State_space<Time, Null_IIP>::Workload Jobs;
+
+			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+
+			Null_IIP(const Space &space, const Jobs &jobs) {}
+
+			bool eligible(const Job<Time>& j, Time t, const Job_uid_set& as)
+			{
+				return true;
+			}
+
+			Time latest_start(const Job<Time>& j, Time t, const Job_uid_set& as)
+			{
+				return Time_model::constants<Time>::infinity();
+			}
+		};
+
+		template<class Time> class Precatious_RM_IIP
+		{
+			public:
+
+			typedef Schedule_state<Time> State;
+			typedef State_space<Time, Precatious_RM_IIP> Space;
+			typedef typename State_space<Time, Precatious_RM_IIP>::Workload Jobs;
+
+			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+
+			Precatious_RM_IIP(const Space &space, const Jobs &jobs)
+			: space(space), max_priority(highest_prio(jobs))
+			{
+				for (const Job<Time>& j : jobs)
+					if (j.get_priority() == max_priority)
+						hp_jobs.insert({j.latest_arrival(), &j});
+			}
+
+			bool eligible(const Job<Time>& j, Time t, const Job_uid_set& as)
+			{
+				return t <= latest_start(j, t, as);
+			}
+
+			Time latest_start(const Job<Time>& j, Time t, const Job_uid_set& as)
+			{
+				// Never block maximum-priority jobs
+				if (j.get_priority() == max_priority)
+					return Time_model::constants<Time>::infinity();
+
+				for (auto it = hp_jobs.upper_bound(t); it != hp_jobs.end(); it++) {
+					const Job<Time>& h = *it->second;
+					if (space.incomplete(as, h)) {
+						Time latest = h.get_deadline()
+						              - h.maximal_cost()
+						              - j.maximal_cost();
+						return latest;
+					}
+				}
+
+				// If we didn't find anything relevant, then there is no reason
+				// to block this job.
+				return Time_model::constants<Time>::infinity();
+			}
+
+			private:
+
+			const Space &space;
+			const Time max_priority;
+			std::multimap<Time, const Job<Time>*> hp_jobs;
+
+			static Time highest_prio(const Jobs &jobs)
+			{
+				Time prio = Time_model::constants<Time>::infinity();
+				for (auto j : jobs)
+					prio = std::min(prio, j.get_priority());
+				return prio;
+			}
+
+
+		};
+
 
 	}
 }

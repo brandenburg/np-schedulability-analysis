@@ -8,6 +8,7 @@
 
 using namespace NP;
 
+static const auto inf = Time_model::constants<dtime_t>::infinity();
 
 TEST_CASE("Intervals") {
 	auto i1 = Interval<dtime_t>{10, 20};
@@ -77,7 +78,7 @@ TEST_CASE("state space") {
 	CHECK(j1.earliest_arrival() == 0);
 	CHECK(j1.latest_arrival() == 0);
 
-	auto s1 = s0.schedule(j1);
+	auto s1 = s0.schedule(j1, inf, inf);
 
 	CHECK(s1.earliest_finish_time() == j1.least_cost());
 	CHECK(s1.latest_finish_time() == j1.maximal_cost());

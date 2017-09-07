@@ -90,16 +90,17 @@ namespace NP {
 			// l_k, equation 6
 			Time next_latest_finish_time(
 				const Job<Time>& j,
-				const Time other_certain_start = Time_model::constants<Time>::infinity()) const
+				const Time other_certain_start,
+				const Time iip_latest_start) const
 			{
 				// t_s'
 				auto own_latest_start = std::max(latest_finish_time(),
 												 j.latest_arrival());
 
-				// IIP: TBD
-
-				// t_R
-				auto last_start_before_other = other_certain_start - Time_model::constants<Time>::epsilon();
+				// t_R, t_I
+				auto last_start_before_other = std::min(
+					other_certain_start - Time_model::constants<Time>::epsilon(),
+					iip_latest_start);
 
 				return std::min(own_latest_start, last_start_before_other)
 					   + j.maximal_cost();
@@ -112,12 +113,14 @@ namespace NP {
 
 			Schedule_state<Time> schedule(
 				const Job<Time>& j,
-				const Time other_certain_start = Time_model::constants<Time>::infinity()) const
+				const Time other_certain_start,
+				const Time iip_latest_start) const
 			{
 				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);
 				DM("Other: " << other_certain_start <<  std::endl);
 				Time eft = next_earliest_finish_time(j);
-				Time lft = next_latest_finish_time(j, other_certain_start);
+				Time lft = next_latest_finish_time(j, other_certain_start,
+				                                   iip_latest_start);
 				DM("eft:" << eft << " lft:" << lft << std::endl);
 				Schedule_state next(eft, lft, scheduled_jobs, next_key(j));
 				next.scheduled_jobs.insert(&j);

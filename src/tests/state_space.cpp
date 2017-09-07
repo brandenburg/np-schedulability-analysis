@@ -7,6 +7,7 @@
 
 using namespace NP;
 
+static const auto inf = Time_model::constants<dtime_t>::infinity();
 
 TEST_CASE("[NP state space] Find all next jobs") {
 	Uniproc::State_space<dtime_t>::Workload jobs{
@@ -18,7 +19,7 @@ TEST_CASE("[NP state space] Find all next jobs") {
 	SUBCASE("State evolution") {
 		auto v1 = Uniproc::Schedule_state<dtime_t>::initial_state();
 
-		auto v2 = v1.schedule(jobs[1], Time_model::constants<dtime_t>::infinity());
+		auto v2 = v1.schedule(jobs[1], inf, inf);
 
 		CHECK(v2.earliest_finish_time() == 12);
 		CHECK(v2.latest_finish_time() == 12);
