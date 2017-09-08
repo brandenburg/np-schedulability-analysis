@@ -81,6 +81,12 @@ namespace NP {
 				const Job<Time>* scheduled;
 				const State* source;
 				const State* target;
+				const Time latest_finish_time;
+
+				bool deadline_miss_possible() const
+				{
+					return latest_finish_time > scheduled->get_deadline();
+				}
 			};
 
 			const std::list<Edge>& get_edges() const
@@ -363,7 +369,7 @@ namespace NP {
 				// update response times
 				update_finish_times(j, next.finish_range());
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-				edges.emplace_back(Edge{&j, &s, &next});
+				edges.emplace_back(Edge{&j, &s, &next, next.latest_finish_time()});
 #endif
 			}
 
@@ -455,7 +461,7 @@ namespace NP {
 							update_finish_times(j, ftimes);
 							it->second->update_finish_range(ftimes);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-							edges.emplace_back(Edge{&j, &s, it->second});
+							edges.emplace_back(Edge{&j, &s, it->second, ftimes.upto()});
 #endif
 							return;
 						}
@@ -556,20 +562,19 @@ namespace NP {
 						    << "T" << e.scheduled->get_task_id()
 						    << " J" << e.scheduled->get_id()
 						    << "\\nDL=" << e.scheduled->get_deadline()
+						    << "\\nLFT=" << e.latest_finish_time
 						    << "\"";
-						if (e.target->latest_finish_time()
-						    > e.scheduled->get_deadline()) {
+						if (e.deadline_miss_possible()) {
 							out << ",color=Red,fontcolor=Red";
 						}
 						out << "]"
 						    << ";"
 						    << std::endl;
-						if (e.target->latest_finish_time()
-						    > e.scheduled->get_deadline()) {
+						if (e.deadline_miss_possible()) {
 							out << "S" << state_id[e.target]
 								<< "[color=Red];"
 								<< std::endl;
-							}
+						}
 					}
 					out << "}" << std::endl;
 				return out;
