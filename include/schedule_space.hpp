@@ -621,6 +621,7 @@ namespace NP {
 				for (const Job<Time>& j : jobs)
 					if (j.get_priority() == max_priority)
 						hp_jobs.insert({j.latest_arrival(), &j});
+				DM("IIP max priority = " << max_priority);
 			}
 
 			bool eligible(const Job<Time>& j, Time t, const Job_uid_set& as)
@@ -630,9 +631,13 @@ namespace NP {
 
 			Time latest_start(const Job<Time>& j, Time t, const Job_uid_set& as)
 			{
+				DM("IIP P-RM for " << j << ": ");
+
 				// Never block maximum-priority jobs
-				if (j.get_priority() == max_priority)
+				if (j.get_priority() == max_priority) {
+					DM("Self." << std::endl);
 					return Time_model::constants<Time>::infinity();
+				}
 
 				for (auto it = hp_jobs.upper_bound(t); it != hp_jobs.end(); it++) {
 					const Job<Time>& h = *it->second;
@@ -640,9 +645,13 @@ namespace NP {
 						Time latest = h.get_deadline()
 						              - h.maximal_cost()
 						              - j.maximal_cost();
+
+						DM("latest=" << latest << " " << h << std::endl);
 						return latest;
 					}
 				}
+
+				DM("None." << std::endl);
 
 				// If we didn't find anything relevant, then there is no reason
 				// to block this job.
