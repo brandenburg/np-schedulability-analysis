@@ -85,7 +85,7 @@ namespace NP {
 
 				bool deadline_miss_possible() const
 				{
-					return latest_finish_time > scheduled->get_deadline();
+					return scheduled->exceeds_deadline(latest_finish_time);
 				}
 			};
 
@@ -162,17 +162,16 @@ namespace NP {
 				return dl;
 			}
 
-
 			void update_finish_times(const Job<Time>& j, Interval<Time> range)
 			{
 				auto rbounds = rta.find(&j);
 				if (rbounds == rta.end()) {
 					rta.emplace(std::make_pair(&j, range));
-					if (range.upto() > j.get_deadline())
+					if (j.exceeds_deadline(range.upto()))
 						aborted = true;
 				} else {
 					rbounds->second.widen(range);
-					if (rbounds->second.upto() > j.get_deadline())
+					if (j.exceeds_deadline(rbounds->second.upto()))
 						aborted = true;
 				}
 				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);

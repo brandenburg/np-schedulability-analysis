@@ -81,6 +81,13 @@ namespace NP {
 			return deadline;
 		}
 
+		bool exceeds_deadline(Time t) const
+		{
+			return t > deadline
+			       && (t - deadline) >
+			          Time_model::constants<Time>::deadline_miss_tolerance();
+		}
+
 		unsigned long get_id() const
 		{
 			return id;

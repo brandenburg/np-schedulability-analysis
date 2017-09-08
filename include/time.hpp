@@ -32,9 +32,17 @@ namespace Time_model {
 			return std::numeric_limits<T>::max();
 		}
 
+		// minimal time distance before some event
 		static constexpr T epsilon()
 		{
 			return T(1);
+		}
+
+		// a deadline miss of a magnitude of less than the given tolerance is
+		// ignored as noise
+		static constexpr T deadline_miss_tolerance()
+		{
+			return T(0);
 		}
 	};
 
@@ -49,7 +57,14 @@ namespace Time_model {
 
 		static constexpr dense_t epsilon()
 		{
-			return dense_t(0);
+			return std::numeric_limits<dense_t>::epsilon();
+		}
+
+		static constexpr dense_t deadline_miss_tolerance()
+		{
+			// assuming we work with microseconds, this is one picosecond
+			// (i.e., much less than one processor cycle)
+			return 1E-6;
 		}
 
 	};
