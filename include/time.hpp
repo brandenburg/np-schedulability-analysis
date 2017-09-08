@@ -7,7 +7,7 @@
 #include "interval.hpp"
 
 // discrete time
-using dtime_t = unsigned long long;
+using dtime_t = long long;
 
 // dense time
 using dense_t = double;
