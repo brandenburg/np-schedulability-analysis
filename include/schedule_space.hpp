@@ -6,7 +6,6 @@
 #include <map>
 #include <vector>
 #include <deque>
-#include <list>
 #include <algorithm>
 
 #include <iostream>
@@ -89,12 +88,12 @@ namespace NP {
 				}
 			};
 
-			const std::list<Edge>& get_edges() const
+			const std::deque<Edge>& get_edges() const
 			{
 				return edges;
 			}
 
-			const std::list<State>& get_states() const
+			const std::deque<State>& get_states() const
 			{
 				return states;
 			}
@@ -105,7 +104,7 @@ namespace NP {
 			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
 
 			typedef State* State_ref;
-			typedef std::list<State> States;
+			typedef std::deque<State> States;
 			typedef std::unordered_map<hash_value_t, State_ref> States_map;
 
 			typedef const Job<Time>* Job_ref;
@@ -118,7 +117,7 @@ namespace NP {
 			typedef std::unordered_map<const Job<Time>*, Interval<Time> > Response_times;
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-			std::list<Edge> edges;
+			std::deque<Edge> edges;
 #endif
 
 			IIP iip;
