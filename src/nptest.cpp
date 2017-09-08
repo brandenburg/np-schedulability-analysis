@@ -12,6 +12,7 @@
 static bool want_naive;
 static bool want_dense;
 static bool want_prm_iip;
+static bool want_cw_iip;
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 static bool want_dot_graph;
 #endif
@@ -49,10 +50,14 @@ static Analysis_result process_stream(std::istream &in)
 {
 	if (want_dense && want_prm_iip)
 		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Precatious_RM_IIP<dense_t>>>(in);
+	else if (want_dense && want_cw_iip)
+		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Critical_window_IIP<dense_t>>>(in);
 	else if (want_dense && !want_prm_iip)
 		return analyze<dense_t, NP::Uniproc::State_space<dense_t>>(in);
 	else if (!want_dense && want_prm_iip)
 		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Precatious_RM_IIP<dtime_t>>>(in);
+	else if (!want_dense && want_cw_iip)
+		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Critical_window_IIP<dtime_t>>>(in);
 	else
 		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t>>(in);
 }
@@ -108,7 +113,7 @@ int main(int argc, char** argv)
 	      .help("use the naive exploration method (default: merging)");
 
 	parser.add_option("-i", "--iip").dest("iip")
-	      .choices({"none", "P-RM"}).set_default("none")
+	      .choices({"none", "P-RM", "CW"}).set_default("none")
 	      .help("the IIP to use (default: none)");
 
 
@@ -125,6 +130,7 @@ int main(int argc, char** argv)
 
 	const std::string& iip = options.get("iip");
 	want_prm_iip = iip == "P-RM";
+	want_cw_iip = iip == "CW";
 
 	want_naive = options.get("naive");
 
