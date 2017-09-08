@@ -5,9 +5,13 @@ import argparse
 import csv
 import re
 
+from math import ceil,floor
+
 import fractions
 
 from collections import namedtuple
+
+US_TO_NS = 1000
 
 def lcm(a,b):
     return abs(a * b) / fractions.gcd(a,b) if a and b else 0
@@ -28,6 +32,18 @@ def parse_task_id(s):
 
 Task = namedtuple('Task', ['id', 'period', 'phase', 'relative_deadline', 'cost_range', 'jitter_range'])
 Job  = namedtuple('Job', ['id', 'tid', 'arrival_range', 'absolute_deadline', 'cost_range'])
+
+def scale_job(j, factor):
+    def up(x):
+        return int(ceil(x * factor))
+    def down(x):
+        return int(floor(x * factor))
+
+    return j._replace(
+        arrival_range=(down(j.arrival_range[0]), up(j.arrival_range[1])),
+        cost_range=(down(j.cost_range[0]), up(j.cost_range[1])),
+        absolute_deadline=down(j.absolute_deadline)
+    )
 
 def parse_task_set(fname):
     f = open(fname, 'r')
@@ -96,6 +112,10 @@ def parse_args():
     parser.add_argument('--rate-monotonic', dest='priority_policy', default='EDF',
                         action='store_const', const='RM', help='how to assing job prios')
 
+    parser.add_argument('--scale-to-nanos', dest='scale', default=False,
+                        action='store_const', const=True, help='generate integer parameters')
+
+
     return parser.parse_args()
 
 def main():
@@ -117,6 +137,8 @@ def main():
     print(csv_header())
     for t in tasks:
         for j in generate_jobs(t, h):
+            if opts.scale:
+                j = scale_job(j, US_TO_NS)
             print(format_csv(j, prio))
 
 
