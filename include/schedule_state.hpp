@@ -21,12 +21,14 @@ namespace NP {
 			typedef std::unordered_set<const Job<Time>*> Set_type;
 
 			// new empty job set
-			Job_set() {}
+			Job_set()
+			: the_set()
+			{
+			}
 
 			// derive a new job set by "cloning" an existing set and adding a job
 			Job_set(const Job_set& from, const Job<Time>* njob)
 			: the_set(from.the_set)
-			, count(from.count + 1)
 			{
 				the_set.insert(njob);
 			}
@@ -38,27 +40,38 @@ namespace NP {
 
 			bool contains(const Job<Time>* j) const
 			{
-				return the_set.find(j) != the_set.end();
-			}
-
-			const Set_type& get_jobs() const
-			{
-				return the_set;
+				return contains(*j);
 			}
 
 			std::size_t number_of_jobs() const
 			{
-				return count;
+				return the_set.size();
+			}
+
+			friend std::ostream& operator<< (std::ostream& stream,
+			                                 const Job_set<Time>& s)
+			{
+				bool first = true;
+				stream << "{";
+				for (auto j : s.the_set) {
+					if (!first)
+						stream << ", ";
+					first = false;
+					stream << "T" << j->get_task_id() << " J" << j->get_id();
+				}
+				stream << "}";
+
+				return stream;
 			}
 
 			private:
 
 			Set_type the_set;
-			std::size_t count = 0;
 
 			// no accidental copies
 			Job_set(const Job_set& origin) = delete;
 		};
+
 
 
 		template<class Time> class Schedule_state
@@ -201,15 +214,8 @@ namespace NP {
 			friend std::ostream& operator<< (std::ostream& stream,
 			                                 const Schedule_state<Time>& s)
 			{
-				stream << "State(" << s.finish_range() << ", {";
-				bool first = true;
-				for (auto j : s.get_scheduled_jobs().get_jobs()) {
-					if (!first)
-						stream << ", ";
-					first = false;
-					stream << "T" << j->get_task_id() << " J" << j->get_id();
-				}
-				stream << "})";
+				stream << "State(" << s.finish_range() << ", "
+				       << s.get_scheduled_jobs() << ")";
 				return stream;
 			}
 		};
