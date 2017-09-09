@@ -194,23 +194,6 @@ namespace NP {
 				return get_key() ^ j.get_key();
 			}
 
-// 			Schedule_state<Time> schedule(
-// 				const Job<Time>& j,
-// 				const Time other_certain_start,
-// 				const Time iip_latest_start) const
-// 			{
-// 				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);
-// 				DM("Other: " << other_certain_start <<  std::endl);
-// 				Time eft = next_earliest_finish_time(j);
-// 				Time lft = next_latest_finish_time(j, other_certain_start,
-// 				                                   iip_latest_start);
-// 				DM("eft:" << eft << " lft:" << lft << std::endl);
-//
-// 				return Schedule_state{eft, lft,
-// 				                      scheduled_jobs.clone_and_add(&j, eft),
-// 				                      next_key(j)};
-// 			}
-
 			friend std::ostream& operator<< (std::ostream& stream,
 			                                 const Schedule_state<Time>& s)
 			{
