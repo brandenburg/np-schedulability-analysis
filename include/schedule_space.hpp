@@ -110,7 +110,7 @@ namespace NP {
 #endif
 			private:
 
-			typedef Job_set<Time> Job_uid_set;
+			typedef Job_set<Time> Scheduled;
 
 			typedef State* State_ref;
 			typedef std::deque<State> States;
@@ -185,7 +185,7 @@ namespace NP {
 				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);
 			}
 
-			static bool incomplete(const Job_uid_set &scheduled, const Job<Time>& j)
+			static bool incomplete(const Scheduled &scheduled, const Job<Time>& j)
 			{
 				return !scheduled.contains(j);
 			}
@@ -199,7 +199,7 @@ namespace NP {
 			// or after a given point in time
 			Time next_certain_job_release(
 				Time on_or_after,
-				const Job_uid_set &already_scheduled)
+				const Scheduled &already_scheduled)
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
 				     it != jobs_by_latest_arrival.end(); it++) {
@@ -226,7 +226,7 @@ namespace NP {
 			// is certainly released on or after a given point in time
 			Time next_certain_higher_priority_job_release(
 				Time on_or_after,
-				const Job_uid_set& already_scheduled,
+				const Scheduled& already_scheduled,
 				const Job<Time>& reference_job)
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
@@ -252,7 +252,7 @@ namespace NP {
 			// returns true if there is certainly some pending job at the given
 			// time ready to be scheduled
 			bool exists_certainly_released_job(Time at,
-				const Job_uid_set& already_scheduled)
+				const Scheduled& already_scheduled)
 			{
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at
@@ -267,7 +267,7 @@ namespace NP {
 			// priority at the given time ready to be scheduled
 			bool exists_certainly_released_higher_prio_job(
 				Time at,
-				const Job_uid_set& already_scheduled,
+				const Scheduled& already_scheduled,
 				const Job<Time>& reference_job)
 			{
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
@@ -605,16 +605,16 @@ namespace NP {
 			typedef State_space<Time, Null_IIP> Space;
 			typedef typename State_space<Time, Null_IIP>::Workload Jobs;
 
-			typedef Job_set<Time> Job_uid_set;
+			typedef Job_set<Time> Scheduled;
 
 			Null_IIP(const Space &space, const Jobs &jobs) {}
 
-			bool eligible(const Job<Time>& j, Time t, const Job_uid_set& as)
+			bool eligible(const Job<Time>& j, Time t, const Scheduled& as)
 			{
 				return true;
 			}
 
-			Time latest_start(const Job<Time>& j, Time t, const Job_uid_set& as)
+			Time latest_start(const Job<Time>& j, Time t, const Scheduled& as)
 			{
 				return Time_model::constants<Time>::infinity();
 			}
@@ -628,7 +628,7 @@ namespace NP {
 			typedef State_space<Time, Precatious_RM_IIP> Space;
 			typedef typename State_space<Time, Precatious_RM_IIP>::Workload Jobs;
 
-			typedef Job_set<Time> Job_uid_set;
+			typedef Job_set<Time> Scheduled;
 
 			Precatious_RM_IIP(const Space &space, const Jobs &jobs)
 			: space(space), max_priority(highest_prio(jobs))
@@ -639,12 +639,12 @@ namespace NP {
 				DM("IIP max priority = " << max_priority);
 			}
 
-			bool eligible(const Job<Time>& j, Time t, const Job_uid_set& as)
+			bool eligible(const Job<Time>& j, Time t, const Scheduled& as)
 			{
 				return t <= latest_start(j, t, as);
 			}
 
-			Time latest_start(const Job<Time>& j, Time t, const Job_uid_set& as)
+			Time latest_start(const Job<Time>& j, Time t, const Scheduled& as)
 			{
 				DM("IIP P-RM for " << j << ": ");
 
@@ -697,7 +697,7 @@ namespace NP {
 			typedef State_space<Time, Critical_window_IIP> Space;
 			typedef typename State_space<Time, Critical_window_IIP>::Workload Jobs;
 
-			typedef Job_set<Time> Job_uid_set;
+			typedef Job_set<Time> Scheduled;
 
 			Critical_window_IIP(const Space &space, const Jobs &jobs)
 			: space(space)
@@ -706,12 +706,12 @@ namespace NP {
 			{
 			}
 
-			bool eligible(const Job<Time>& j, Time t, const Job_uid_set& as)
+			bool eligible(const Job<Time>& j, Time t, const Scheduled& as)
 			{
 				return t <= latest_start(j, t, as);
 			}
 
-			Time latest_start(const Job<Time>& j, Time t, const Job_uid_set& as)
+			Time latest_start(const Job<Time>& j, Time t, const Scheduled& as)
 			{
 				DM("IIP CW for " << j << ": ");
 				auto ijs = influencing_jobs(j, t, as);
@@ -749,7 +749,7 @@ namespace NP {
 			std::vector<const Job<Time>*> influencing_jobs(
 				const Job<Time>& j_i,
 				Time at,
-				const Job_uid_set& already_scheduled)
+				const Scheduled& already_scheduled)
 			{
 				// influencing jobs
 				std::unordered_map<unsigned long, const Job<Time>*> ijs;
