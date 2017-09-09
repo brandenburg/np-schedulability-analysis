@@ -62,7 +62,7 @@ TEST_CASE("Interval LUT") {
 
 TEST_CASE("state space") {
 
-	auto s0 = NP::Uniproc::Schedule_state<dtime_t>::initial_state();
+	NP::Uniproc::Schedule_state<dtime_t> s0;
 
 	CHECK(s0.earliest_finish_time() == 0);
 	CHECK(s0.latest_finish_time() == 0);
@@ -78,7 +78,7 @@ TEST_CASE("state space") {
 	CHECK(j1.earliest_arrival() == 0);
 	CHECK(j1.latest_arrival() == 0);
 
-	auto s1 = s0.schedule(j1, inf, inf);
+	NP::Uniproc::Schedule_state<dtime_t> s1{s0, j1, inf, inf};
 
 	CHECK(s1.earliest_finish_time() == j1.least_cost());
 	CHECK(s1.latest_finish_time() == j1.maximal_cost());

@@ -2,6 +2,8 @@
 #include <ostream>
 #include <cassert>
 
+#include <set>
+
 #include "jobs.hpp"
 
 #define CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -12,31 +14,99 @@ namespace NP {
 
 	namespace Uniproc {
 
-		template<class Time> class Schedule_state
+		template<class Time> class Job_set
 		{
 			public:
 
-			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+			typedef std::unordered_set<const Job<Time>*> Set_type;
+
+			// new empty job set
+			Job_set() {}
+
+			// derive a new job set by "cloning" an existing set and adding a job
+			Job_set(const Job_set& from, const Job<Time>* njob)
+			: the_set(from.the_set)
+			, count(from.count + 1)
+			{
+				the_set.insert(njob);
+			}
+
+			bool contains(const Job<Time>& j) const
+			{
+				return the_set.find(&j) != the_set.end();
+			}
+
+			bool contains(const Job<Time>* j) const
+			{
+				return the_set.find(j) != the_set.end();
+			}
+
+			const Set_type& get_jobs() const
+			{
+				return the_set;
+			}
+
+			std::size_t number_of_jobs() const
+			{
+				return count;
+			}
+
+			private:
+
+			Set_type the_set;
+			std::size_t count = 0;
+
+			// no accidental copies
+			Job_set(const Job_set& origin) = delete;
+		};
+
+
+		template<class Time> class Schedule_state
+		{
+			public:
 
 			private:
 
 			Interval<Time> finish_time;
 
-			Job_uid_set scheduled_jobs;
+			Job_set<Time> scheduled_jobs;
 			hash_value_t lookup_key;
 
-			Schedule_state(Time eft, Time lft, const Job_uid_set &jobs,
+			Schedule_state(Time eft, Time lft, const Job_set<Time> &jobs,
 						   hash_value_t k)
 			: finish_time{eft, lft}, scheduled_jobs{jobs}, lookup_key{k}
 			{
 			}
 
+			// no accidental copies
+			Schedule_state(const Schedule_state& origin)  = delete;
+
 			public:
 
-			static Schedule_state initial_state()
+			// initial state
+			Schedule_state()
+			: finish_time{0, 0}
+			, lookup_key{0}
 			{
-				return Schedule_state{0, 0, Job_uid_set(), 0};
 			}
+
+			// transition: new state by scheduling a job in an existing state
+			Schedule_state(
+				const Schedule_state& from,
+				const Job<Time>& j,
+				const Time other_certain_start,
+				const Time iip_latest_start)
+			: finish_time{from.next_earliest_finish_time(j),
+			              from.next_latest_finish_time(j, other_certain_start,
+			                                          iip_latest_start)}
+			, scheduled_jobs{from.scheduled_jobs, &j}
+			, lookup_key{from.next_key(j)}
+			{
+				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);
+				DM("Other: " << other_certain_start <<  std::endl);
+				DM("eft:" << finish_time.from() << " lft:" << finish_time.upto() << std::endl);
+			}
+
 
 			Time earliest_finish_time() const
 			{
@@ -64,7 +134,7 @@ namespace NP {
 				return lookup_key;
 			}
 
-			const Job_uid_set& get_scheduled_jobs() const
+			const Job_set<Time>& get_scheduled_jobs() const
 			{
 				return scheduled_jobs;
 			}
@@ -111,32 +181,33 @@ namespace NP {
 				return get_key() ^ j.get_key();
 			}
 
-			Schedule_state<Time> schedule(
-				const Job<Time>& j,
-				const Time other_certain_start,
-				const Time iip_latest_start) const
-			{
-				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);
-				DM("Other: " << other_certain_start <<  std::endl);
-				Time eft = next_earliest_finish_time(j);
-				Time lft = next_latest_finish_time(j, other_certain_start,
-				                                   iip_latest_start);
-				DM("eft:" << eft << " lft:" << lft << std::endl);
-				Schedule_state next(eft, lft, scheduled_jobs, next_key(j));
-				next.scheduled_jobs.insert(&j);
-				return next;
-			}
+// 			Schedule_state<Time> schedule(
+// 				const Job<Time>& j,
+// 				const Time other_certain_start,
+// 				const Time iip_latest_start) const
+// 			{
+// 				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);
+// 				DM("Other: " << other_certain_start <<  std::endl);
+// 				Time eft = next_earliest_finish_time(j);
+// 				Time lft = next_latest_finish_time(j, other_certain_start,
+// 				                                   iip_latest_start);
+// 				DM("eft:" << eft << " lft:" << lft << std::endl);
+//
+// 				return Schedule_state{eft, lft,
+// 				                      scheduled_jobs.clone_and_add(&j, eft),
+// 				                      next_key(j)};
+// 			}
 
 			friend std::ostream& operator<< (std::ostream& stream,
 			                                 const Schedule_state<Time>& s)
 			{
 				stream << "State(" << s.finish_range() << ", {";
 				bool first = true;
-				for (auto j : s.get_scheduled_jobs()) {
+				for (auto j : s.get_scheduled_jobs().get_jobs()) {
 					if (!first)
 						stream << ", ";
 					first = false;
-					stream << j->get_id();
+					stream << "T" << j->get_task_id() << " J" << j->get_id();
 				}
 				stream << "})";
 				return stream;

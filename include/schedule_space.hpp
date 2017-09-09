@@ -82,6 +82,15 @@ namespace NP {
 				const State* target;
 				const Time latest_finish_time;
 
+				Edge(const Job<Time>* s, const State* src, const State* tgt,
+				     Time lft)
+				: scheduled(s)
+				, source(src)
+				, target(tgt)
+				, latest_finish_time(lft)
+				{
+				}
+
 				bool deadline_miss_possible() const
 				{
 					return scheduled->exceeds_deadline(latest_finish_time);
@@ -101,7 +110,7 @@ namespace NP {
 #endif
 			private:
 
-			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+			typedef Job_set<Time> Job_uid_set;
 
 			typedef State* State_ref;
 			typedef std::deque<State> States;
@@ -165,7 +174,7 @@ namespace NP {
 			{
 				auto rbounds = rta.find(&j);
 				if (rbounds == rta.end()) {
-					rta.emplace(std::make_pair(&j, range));
+					rta.emplace(&j, range);
 					if (j.exceeds_deadline(range.upto()))
 						aborted = true;
 				} else {
@@ -178,7 +187,7 @@ namespace NP {
 
 			static bool incomplete(const Job_uid_set &scheduled, const Job<Time>& j)
 			{
-				return scheduled.find(&j) == scheduled.end();
+				return !scheduled.contains(j);
 			}
 
 			static bool incomplete(const State& s, const Job<Time>& j)
@@ -217,7 +226,7 @@ namespace NP {
 			// is certainly released on or after a given point in time
 			Time next_certain_higher_priority_job_release(
 				Time on_or_after,
-				const Job_uid_set &already_scheduled,
+				const Job_uid_set& already_scheduled,
 				const Job<Time>& reference_job)
 			{
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
@@ -243,7 +252,7 @@ namespace NP {
 			// returns true if there is certainly some pending job at the given
 			// time ready to be scheduled
 			bool exists_certainly_released_job(Time at,
-				Job_uid_set already_scheduled)
+				const Job_uid_set& already_scheduled)
 			{
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at
@@ -258,7 +267,7 @@ namespace NP {
 			// priority at the given time ready to be scheduled
 			bool exists_certainly_released_higher_prio_job(
 				Time at,
-				Job_uid_set already_scheduled,
+				const Job_uid_set& already_scheduled,
 				const Job<Time>& reference_job)
 			{
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
@@ -328,9 +337,15 @@ namespace NP {
 // 				       && iip.eligible(s, j);
 			}
 
-			State& new_state(State&& s)
+			void make_initial_state()
 			{
-				states.emplace_back(s);
+				// construct initial state
+				states.emplace_back();
+				new_state();
+			}
+
+			State& new_state()
+			{
 				State& s_ref = states.back();
 				todo.push_back(&s_ref);
 				states_by_key.insert(std::make_pair(s_ref.get_key(), &s_ref));
@@ -363,18 +378,19 @@ namespace NP {
 
 				DM("nest=" << s.next_earliest_start_time(j) << std::endl);
 				DM("other_certain_start=" << other_certain_start << std::endl);
-				const State& next = new_state(
-					s.schedule(j, other_certain_start, iip_latest_start));
+				// construct new state from s by scheduling j
+				states.emplace_back(s, j, other_certain_start, iip_latest_start);
+				const State& next = new_state();
 				// update response times
 				update_finish_times(j, next.finish_range());
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-				edges.emplace_back(Edge{&j, &s, &next, next.latest_finish_time()});
+				edges.emplace_back(&j, &s, &next, next.latest_finish_time());
 #endif
 			}
 
 			void explore_naively()
 			{
-				new_state(State::initial_state());
+				make_initial_state();
 
 				while (not_done() && !aborted) {
 					const State& s = next_state();
@@ -427,7 +443,7 @@ namespace NP {
 
 					// check for a dead end
 					if (!found_at_least_one &&
-					    s.get_scheduled_jobs().size() != jobs.size()) {
+					    s.get_scheduled_jobs().number_of_jobs() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
 						aborted = true;
 					}
@@ -460,7 +476,7 @@ namespace NP {
 							update_finish_times(j, ftimes);
 							it->second->update_finish_range(ftimes);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-							edges.emplace_back(Edge{&j, &s, it->second, ftimes.upto()});
+							edges.emplace_back(&j, &s, it->second, ftimes.upto());
 #endif
 							return;
 						}
@@ -472,7 +488,7 @@ namespace NP {
 
 			void explore()
 			{
-				new_state(State::initial_state());
+				make_initial_state();
 
 				while (not_done() && !aborted) {
 					const State& s = next_state();
@@ -529,7 +545,7 @@ namespace NP {
 
 					// check for a dead end
 					if (!found_at_least_one &&
-					    s.get_scheduled_jobs().size() != jobs.size()) {
+					    s.get_scheduled_jobs().number_of_jobs() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
 						aborted = true;
 					}
@@ -589,7 +605,7 @@ namespace NP {
 			typedef State_space<Time, Null_IIP> Space;
 			typedef typename State_space<Time, Null_IIP>::Workload Jobs;
 
-			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+			typedef Job_set<Time> Job_uid_set;
 
 			Null_IIP(const Space &space, const Jobs &jobs) {}
 
@@ -612,7 +628,7 @@ namespace NP {
 			typedef State_space<Time, Precatious_RM_IIP> Space;
 			typedef typename State_space<Time, Precatious_RM_IIP>::Workload Jobs;
 
-			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+			typedef Job_set<Time> Job_uid_set;
 
 			Precatious_RM_IIP(const Space &space, const Jobs &jobs)
 			: space(space), max_priority(highest_prio(jobs))
@@ -681,7 +697,7 @@ namespace NP {
 			typedef State_space<Time, Critical_window_IIP> Space;
 			typedef typename State_space<Time, Critical_window_IIP>::Workload Jobs;
 
-			typedef std::unordered_set<const Job<Time>*> Job_uid_set;
+			typedef Job_set<Time> Job_uid_set;
 
 			Critical_window_IIP(const Space &space, const Jobs &jobs)
 			: space(space)

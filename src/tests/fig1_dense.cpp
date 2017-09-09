@@ -35,12 +35,12 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 // 	Uniproc::State_space space{jobs};
 
 	SUBCASE("[dense time] naive state evolution (figure 2)") {
-		auto v1 = Uniproc::Schedule_state<dense_t>::initial_state();
+		Uniproc::Schedule_state<dense_t> v1;
 
 		CHECK(v1.earliest_finish_time() == 0);
 		CHECK(v1.latest_finish_time() == 0);
 
-		auto v2 = v1.schedule(jobs[0], 0, inf);
+		Uniproc::Schedule_state<dense_t> v2{v1, jobs[0], 0, inf};
 
 		std::cout << "v1: " << v1 << std::endl;
 		std::cout << "     ---[ " << jobs[0] << " --->" << std::endl;
@@ -49,7 +49,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v2.earliest_finish_time() == 1);
 		CHECK(v2.latest_finish_time() == 2);
 
-		auto v3 = v2.schedule(jobs[6], 10, inf);
+		Uniproc::Schedule_state<dense_t> v3{v2, jobs[6], 10, inf};
 
 		std::cout << "     ---[ " << jobs[6] << " --->" << std::endl;
 		std::cout << "v3: " << v3 << std::endl;
@@ -57,7 +57,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v3.earliest_finish_time() == 8);
 		CHECK(v3.latest_finish_time() == 10);
 
-		auto v4 = v3.schedule(jobs[8], 10, inf);
+		Uniproc::Schedule_state<dense_t> v4{v3, jobs[8], 10, inf};
 
 		std::cout << "     ---[ " << jobs[8] << " --->" << std::endl;
 		std::cout << "v4: " << v4 << std::endl;
@@ -65,7 +65,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v4.earliest_finish_time() == 11);
 		CHECK(v4.latest_finish_time() == 22);
 
-		auto v6 = v4.schedule(jobs[1], inf, inf);
+		Uniproc::Schedule_state<dense_t> v6{v4, jobs[1], inf, inf};
 
 		std::cout << "     ---[ " << jobs[1] << " --->" << std::endl;
 		std::cout << "v6: " << v6 << std::endl;
@@ -73,7 +73,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v6.earliest_finish_time() == 12);
 		CHECK(v6.latest_finish_time() == 24);
 
-		auto v8 = v6.schedule(jobs[2], inf, inf);
+		Uniproc::Schedule_state<dense_t> v8{v6, jobs[2], inf, inf};
 
 		std::cout << "     ---[ " << jobs[2] << " --->" << std::endl;
 		std::cout << "v8: " << v8 << std::endl;
@@ -84,7 +84,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 
 		std::cout << "==========[ lower branch ]=========" << std::endl;
 
-		auto v5 = v3.schedule(jobs[1], inf, inf);
+		Uniproc::Schedule_state<dense_t> v5{v3, jobs[1], inf, inf};
 
 		std::cout << "v3: " << v3 << std::endl;
 		std::cout << "    ---[ " << jobs[1] << " --->" << std::endl;
@@ -93,7 +93,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v5.earliest_finish_time() == 11);
 		CHECK(v5.latest_finish_time() == 12);
 
-		auto v7 = v5.schedule(jobs[8], inf, inf);
+		Uniproc::Schedule_state<dense_t> v7{v5, jobs[8], inf, inf};
 
 		std::cout << "    ---[ " << jobs[8] << " --->" << std::endl;
 		std::cout << "v7: " << v7 << std::endl;
@@ -101,7 +101,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v7.earliest_finish_time() == 14);
 		CHECK(v7.latest_finish_time() == 25);
 
-		auto v9 = v7.schedule(jobs[2], inf, inf);
+		Uniproc::Schedule_state<dense_t> v9{v7, jobs[2], inf, inf};
 
 		std::cout << "    ---[ " << jobs[2] << " --->" << std::endl;
 		std::cout << "v9: " << v9 << std::endl;
