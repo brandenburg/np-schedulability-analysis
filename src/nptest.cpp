@@ -2,6 +2,8 @@
 #include <sstream>
 #include <fstream>
 
+ #include <sys/resource.h>
+
 #include "OptionParser.h"
 
 #include "schedule_space.hpp"
@@ -86,10 +88,16 @@ static void process_file(const std::string& fname)
 #endif
 		}
 
+		struct rusage u;
+		long bytes_used = 0;
+		if (getrusage(RUSAGE_SELF, &u) == 0)
+			bytes_used = u.ru_maxrss;
+
 		std::cout << fname
 		          << ",  " << (int) result.schedulable
 		          << ",  " << result.number_of_states
 		          << ",  " << std::fixed << result.cpu_time
+		          << ",  " << ((double) bytes_used) / (1024 * 1024)
 		          << std::endl;
 	} catch (std::ios_base::failure& ex) {
 		std::cerr << fname << ": parse error" << std::endl;
