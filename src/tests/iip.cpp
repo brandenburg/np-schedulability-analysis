@@ -194,3 +194,29 @@ TEST_CASE("[IIP] CW-EDF extra example")
 }
 
 
+TEST_CASE("[IIP] P-RM idle time")
+{
+	Uniproc::State_space<dtime_t>::Workload jobs{
+		// high-frequency task
+		Job<dtime_t>{1, I( 0,  0), I(3, 3), 10, 1, 1},
+		Job<dtime_t>{2, I(10, 10), I(3, 3), 20, 1, 1},
+		Job<dtime_t>{3, I(20, 20), I(3, 3), 30, 1, 1},
+
+		// blocking job
+		Job<dtime_t>{1, I( 8,  8), I(10, 10), 30, 2, 2},
+
+		// low-priority job
+		Job<dtime_t>{1, I( 9,  9), I(1, 1), 30, 3, 3},
+	};
+
+	SUBCASE("naive exploration") {
+		auto space = Uniproc::State_space<dtime_t, Uniproc::Precatious_RM_IIP<dtime_t>>::explore_naively(jobs);
+		CHECK(space.is_schedulable());
+	}
+
+	SUBCASE("exploration with state-merging") {
+		auto space = Uniproc::State_space<dtime_t, Uniproc::Precatious_RM_IIP<dtime_t>>::explore(jobs);
+		CHECK(space.is_schedulable());
+	}
+
+}

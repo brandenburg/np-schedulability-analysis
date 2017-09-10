@@ -220,6 +220,13 @@ namespace NP {
 					if (!iip.eligible(j, j.latest_arrival(), already_scheduled))
 						continue;
 
+					// It must be priority-eligible when released, too.
+					// Relevant only if we have an IIP, otherwise the job is
+					// trivially priority-eligible.
+					if (iip.can_block &&
+					    !priority_eligible(j.latest_arrival(), already_scheduled, j))
+						continue;
+
 					// great, this job fits the bill
 					return j.latest_arrival();
 				}
@@ -262,7 +269,9 @@ namespace NP {
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at
 					    && incomplete(already_scheduled, j)
+				        && (!iip.can_block || priority_eligible(at, already_scheduled, j))
 					    && iip.eligible(j, at, already_scheduled)) {
+					    DM("\t\t\t\tcertainly released at " << at << ":" << j << std::endl);
 						return true;
 					}
 				return false;
@@ -286,10 +295,16 @@ namespace NP {
 				return false;
 			}
 
-			bool priority_eligible(Time t_s, const State &s, const Job<Time> &j)
+			bool priority_eligible(Time t_s, const Scheduled& already_scheduled,
+			                       const Job<Time> &j)
 			{
 				return !exists_certainly_released_higher_prio_job(
-				            t_s, s.get_scheduled_jobs(), j);
+				            t_s, already_scheduled, j);
+			}
+
+			bool priority_eligible(Time t_s, const State &s, const Job<Time> &j)
+			{
+				return priority_eligible(t_s, s.get_scheduled_jobs(), j);
 			}
 
 			bool potentially_next(const State &s, const Job<Time> &j)
@@ -335,11 +350,6 @@ namespace NP {
 					return false;
 				}
 				return true;
-
-// 				return incomplete(s, j) // Not yet scheduled
-// 				       && priority_eligible(s, j)
-// 				       && potentially_next(s, j)
-// 				       && iip.eligible(s, j);
 			}
 
 			void make_initial_state()
@@ -518,7 +528,7 @@ namespace NP {
 						DM("    -?? " << j << std::endl);
 						// if it is potentially active in the range of
 						// interest...
-						if (j.scheduling_window().intersects(next_range))
+						if (j.scheduling_window().intersects(next_range)) {
 							// if it can be scheduled next...
 							if (is_eligible_successor(s, j)) {
 								DM("        --> ok!"  << std::endl);
@@ -527,6 +537,9 @@ namespace NP {
 								//new_state(schedule_naively(s, j));
 								found_at_least_one = true;
 							}
+						} else {
+							DM("        * not pending" << std::endl);
+						}
 					}
 					// (2) check jobs that are released later in the interval
 					for (auto it = jobs_by_earliest_arrival.upper_bound(ts_min);
@@ -534,8 +547,10 @@ namespace NP {
 						const Job<Time>& j = *it->second;
 						// stop looking once we've left the range of interest
 						DM("    -?? " << j << std::endl);
-						if (!j.scheduling_window().intersects(next_range))
+						if (!j.scheduling_window().intersects(next_range)) {
+							DM("        * not pending" << std::endl);
 							break;
+						}
 						// if it can be scheduled next...
 						if (is_eligible_successor(s, j)) {
 							DM("        --> OK!"  << std::endl);
@@ -553,6 +568,7 @@ namespace NP {
 					    s.get_scheduled_jobs().number_of_jobs() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
 						aborted = true;
+						DM(":: Didn't find any possible successors. Aborting." << std::endl);
 					}
 				}
 			}

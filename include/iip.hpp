@@ -15,6 +15,8 @@ namespace NP {
 
 			typedef Job_set<Time> Scheduled;
 
+			static const bool can_block = false;
+
 			Null_IIP(const Space &space, const Jobs &jobs) {}
 
 			bool eligible(const Job<Time>& j, Time t, const Scheduled& as)
@@ -37,6 +39,8 @@ namespace NP {
 			typedef typename State_space<Time, Precatious_RM_IIP>::Workload Jobs;
 
 			typedef Job_set<Time> Scheduled;
+
+			static const bool can_block = true;
 
 			Precatious_RM_IIP(const Space &space, const Jobs &jobs)
 			: space(space), max_priority(highest_prio(jobs))
@@ -106,6 +110,8 @@ namespace NP {
 			typedef typename State_space<Time, Critical_window_IIP>::Workload Jobs;
 
 			typedef Job_set<Time> Scheduled;
+
+			static const bool can_block = true;
 
 			Critical_window_IIP(const Space &space, const Jobs &jobs)
 			: space(space)
