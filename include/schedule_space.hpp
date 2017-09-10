@@ -6,6 +6,7 @@
 #include <map>
 #include <vector>
 #include <deque>
+#include <list>
 #include <algorithm>
 
 #include <iostream>
@@ -102,7 +103,7 @@ namespace NP {
 				return edges;
 			}
 
-			const std::deque<State>& get_states() const
+			const std::list<State>& get_states() const
 			{
 				return states;
 			}
@@ -112,9 +113,9 @@ namespace NP {
 
 			typedef Job_set<Time> Scheduled;
 
-			typedef State* State_ref;
-			typedef std::deque<State> States;
-			typedef std::unordered_map<hash_value_t, State_ref> States_map;
+			typedef std::list<State> States;
+			typedef typename std::list<State>::iterator State_ref;
+			typedef std::unordered_multimap<hash_value_t, State_ref> States_map;
 
 			typedef const Job<Time>* Job_ref;
 			typedef std::multimap<Time, Job_ref> By_time_map;
@@ -359,25 +360,59 @@ namespace NP {
 			void make_initial_state()
 			{
 				// construct initial state
-				states.emplace_back();
 				new_state();
 			}
 
-			State& new_state()
+			template <typename... Args>
+			State& new_state(Args&&... args)
 			{
-				State& s_ref = states.back();
-				todo.push_back(&s_ref);
-				states_by_key.insert(std::make_pair(s_ref.get_key(), &s_ref));
+				states.emplace_back(std::forward<Args>(args)...);
+				State_ref s_ref = --states.end();
+				todo.push_back(s_ref);
+				states_by_key.insert(std::make_pair(s_ref->get_key(), s_ref));
 				num_states++;
-				return s_ref;
+				return *s_ref;
 			}
 
 			const State& next_state()
 			{
-				assert(!todo.empty());
 				auto s = todo.front();
-				todo.pop_front();
 				return *s;
+			}
+
+			bool in_todo(State_ref s)
+			{
+				for (auto it : todo)
+					if (it == s)
+						return true;
+				return false;
+			}
+
+			void done_with_current_state()
+			{
+				State_ref s = todo.front();
+				// remove from TODO list
+				todo.pop_front();
+
+#ifndef CONFIG_COLLECT_SCHEDULE_GRAPH
+				// If we don't need to collect all states, we can remove
+				// all those that we are done with, which saves a lot of
+				// memory.
+
+				// remove from lookup map
+				auto matches = states_by_key.equal_range(s->get_key());
+				bool deleted = false;
+				for (auto it = matches.first; it != matches.second; it++)
+					if (it->second == s) {
+						states_by_key.erase(it);
+						deleted = true;
+						break;
+					}
+				assert(deleted);
+
+				// delete from master list to free up memory
+				states.erase(s);
+#endif
 			}
 
 			bool not_done()
@@ -399,8 +434,7 @@ namespace NP {
 				DM("nest=" << s.next_earliest_start_time(j) << std::endl);
 				DM("other_certain_start=" << other_certain_start << std::endl);
 				// construct new state from s by scheduling j
-				states.emplace_back(s, j, index_of(j), other_certain_start, iip_latest_start);
-				const State& next = new_state();
+				const State& next = new_state(s, j, index_of(j), other_certain_start, iip_latest_start);
 				// update response times
 				update_finish_times(j, next.finish_range());
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -467,6 +501,8 @@ namespace NP {
 						// out of options and we didn't schedule all jobs
 						aborted = true;
 					}
+
+					done_with_current_state();
 				}
 			}
 
@@ -485,24 +521,37 @@ namespace NP {
 							t_s, s.get_scheduled_jobs(), j);
 					Time iip_latest_start =
 						iip.latest_start(j, t_s, s.get_scheduled_jobs());
-					auto eft = s.next_earliest_finish_time(j);
-					auto lft = s.next_latest_finish_time(j,
-						other_certain_start, iip_latest_start);
-					auto ftimes = Interval<Time>{eft, lft};
+
+					State goal{s, j, index_of(j), other_certain_start,
+					           iip_latest_start};
 
 					for (auto it = r.first; it != r.second; it++) {
-						if (ftimes.intersects(it->second->finish_range())) {
+						State &found = *it->second;
 
-							update_finish_times(j, ftimes);
-							it->second->update_finish_range(ftimes);
+						// key collision if the job sets don't match exactly
+						if (found.get_scheduled_jobs()
+						    != goal.get_scheduled_jobs())
+							continue;
+
+						// cannot merge if without loss of accuracy if the
+						// intervals do not overlap
+						if (!goal.finish_range()
+						     .intersects(found.finish_range()))
+							continue;
+
+						// great, we found a match and can merge the states
+						update_finish_times(j, goal.finish_range());
+						found.update_finish_range(goal.finish_range());
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-							edges.emplace_back(&j, &s, it->second, ftimes.upto());
+						edges.emplace_back(&j, &s, &(found),
+						                   goal.finish_range().upto());
 #endif
-							return;
-						}
+						return;
 					}
 				}
 
+				// If we reach here, we didn't find a match and need to create
+				// a new state.
 				schedule_naively(s, j);
 			}
 
@@ -575,6 +624,8 @@ namespace NP {
 						aborted = true;
 						DM(":: Didn't find any possible successors. Aborting." << std::endl);
 					}
+
+					done_with_current_state();
 				}
 			}
 

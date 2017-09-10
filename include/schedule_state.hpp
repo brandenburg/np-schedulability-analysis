@@ -32,9 +32,23 @@ namespace NP {
 				the_set[idx] = true;
 			}
 
+			// create the diff of two job sets (intended for debugging only)
+			Job_set(const Job_set &a, const Job_set &b)
+			: the_set(std::max(a.the_set.size(), b.the_set.size()), true)
+			{
+				auto limit = std::min(a.the_set.size(), b.the_set.size());
+				for (unsigned int i = 0; i < limit; i++)
+					the_set[i] = a.contains(i) ^ b.contains(i);
+			}
+
 			bool operator==(const Job_set &other) const
 			{
 				return the_set == other.the_set;
+			}
+
+			bool operator!=(const Job_set &other) const
+			{
+				return the_set != other.the_set;
 			}
 
 			bool contains(std::size_t idx) const
@@ -80,8 +94,6 @@ namespace NP {
 
 		template<class Time> class Schedule_state
 		{
-			public:
-
 			private:
 
 			Interval<Time> finish_time;
@@ -141,7 +153,7 @@ namespace NP {
 				return finish_time;
 			}
 
-			void update_finish_range(Interval<Time> &update)
+			void update_finish_range(const Interval<Time> &update)
 			{
 				assert(update.intersects(finish_time));
 				finish_time.widen(update);
