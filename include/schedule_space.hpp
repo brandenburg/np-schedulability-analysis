@@ -185,12 +185,17 @@ namespace NP {
 				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);
 			}
 
-			static bool incomplete(const Scheduled &scheduled, const Job<Time>& j)
+			std::size_t index_of(const Job<Time>& j) const
 			{
-				return !scheduled.contains(j);
+				return (std::size_t) (&j - &(jobs[0]));
 			}
 
-			static bool incomplete(const State& s, const Job<Time>& j)
+			bool incomplete(const Scheduled &scheduled, const Job<Time>& j) const
+			{
+				return !scheduled.contains(index_of(j));
+			}
+
+			bool incomplete(const State& s, const Job<Time>& j) const
 			{
 				return incomplete(s.get_scheduled_jobs(), j);
 			}
@@ -379,7 +384,7 @@ namespace NP {
 				DM("nest=" << s.next_earliest_start_time(j) << std::endl);
 				DM("other_certain_start=" << other_certain_start << std::endl);
 				// construct new state from s by scheduling j
-				states.emplace_back(s, j, other_certain_start, iip_latest_start);
+				states.emplace_back(s, j, index_of(j), other_certain_start, iip_latest_start);
 				const State& next = new_state();
 				// update response times
 				update_finish_times(j, next.finish_range());

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <ostream>
 #include <cassert>
+#include <algorithm>
 
 #include <set>
 
@@ -18,34 +19,36 @@ namespace NP {
 		{
 			public:
 
-			typedef std::unordered_set<const Job<Time>*> Set_type;
+			typedef std::vector<bool> Set_type;
 
 			// new empty job set
-			Job_set()
-			: the_set()
-			{
-			}
+			Job_set() : the_set() {}
 
 			// derive a new job set by "cloning" an existing set and adding a job
-			Job_set(const Job_set& from, const Job<Time>* njob)
-			: the_set(from.the_set)
+			Job_set(const Job_set& from, const Job<Time>* njob, std::size_t idx)
+			: the_set(std::max(from.the_set.size(), idx + 1))
 			{
-				the_set.insert(njob);
+				std::copy(from.the_set.begin(), from.the_set.end(), the_set.begin());
+				the_set[idx] = true;
 			}
 
-			bool contains(const Job<Time>& j) const
+			bool operator==(const Job_set &other) const
 			{
-				return the_set.find(&j) != the_set.end();
+				return the_set == other.the_set;
 			}
 
-			bool contains(const Job<Time>* j) const
+			bool contains(std::size_t idx) const
 			{
-				return contains(*j);
+				return the_set.size() > idx && the_set[idx];
 			}
 
 			std::size_t number_of_jobs() const
 			{
-				return the_set.size();
+				std::size_t count = 0;
+				for (auto x : the_set)
+					if (x)
+						count++;
+				return count;
 			}
 
 			friend std::ostream& operator<< (std::ostream& stream,
@@ -53,12 +56,13 @@ namespace NP {
 			{
 				bool first = true;
 				stream << "{";
-				for (auto j : s.the_set) {
-					if (!first)
-						stream << ", ";
-					first = false;
-					stream << "T" << j->get_task_id() << " J" << j->get_id();
-				}
+				for (auto i = 0; i < s.the_set.size(); i++)
+					if (s.the_set[i]) {
+						if (!first)
+							stream << ", ";
+						first = false;
+						stream << i;
+					}
 				stream << "}";
 
 				return stream;
@@ -107,12 +111,13 @@ namespace NP {
 			Schedule_state(
 				const Schedule_state& from,
 				const Job<Time>& j,
+				std::size_t idx,
 				const Time other_certain_start,
 				const Time iip_latest_start)
 			: finish_time{from.next_earliest_finish_time(j),
 			              from.next_latest_finish_time(j, other_certain_start,
 			                                          iip_latest_start)}
-			, scheduled_jobs{from.scheduled_jobs, &j}
+			, scheduled_jobs{from.scheduled_jobs, &j, idx}
 			, lookup_key{from.next_key(j)}
 			{
 				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);

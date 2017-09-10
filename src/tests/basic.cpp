@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#include <algorithm>
 #include <iostream>
 
 #include "jobs.hpp"
@@ -78,11 +79,32 @@ TEST_CASE("state space") {
 	CHECK(j1.earliest_arrival() == 0);
 	CHECK(j1.latest_arrival() == 0);
 
-	NP::Uniproc::Schedule_state<dtime_t> s1{s0, j1, inf, inf};
+	NP::Uniproc::Schedule_state<dtime_t> s1{s0, j1, 0, inf, inf};
 
 	CHECK(s1.earliest_finish_time() == j1.least_cost());
 	CHECK(s1.latest_finish_time() == j1.maximal_cost());
 
 //	auto sp = NP::Uniproc::State_space
+}
+
+
+TEST_CASE("bool vector assumptions") {
+	std::vector<bool> v1(100);
+
+	CHECK(v1.size() == 100);
+	CHECK(!v1[10]);
+	v1[10] = true;
+
+	std::vector<bool> v2(400);
+
+	v2 = v1;
+	CHECK(v2.size() == 100);
+	CHECK(v2.capacity() > v1.capacity());
+
+	std::vector<bool> v3(400);
+	std::copy(v1.begin(), v1.end(), v3.begin());
+	CHECK(v3.size() == 400);
+	CHECK(v3.capacity() > v1.capacity());
+	CHECK(v3[10]);
 }
 

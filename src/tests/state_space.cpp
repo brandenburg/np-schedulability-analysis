@@ -19,7 +19,7 @@ TEST_CASE("[NP state space] Find all next jobs") {
 	SUBCASE("State evolution") {
 		Uniproc::Schedule_state<dtime_t> v1;
 
-		Uniproc::Schedule_state<dtime_t> v2{v1, jobs[1], inf, inf};
+		Uniproc::Schedule_state<dtime_t> v2{v1, jobs[1], 1, inf, inf};
 
 		CHECK(v2.earliest_finish_time() == 12);
 		CHECK(v2.latest_finish_time() == 12);
