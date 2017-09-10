@@ -229,7 +229,7 @@ namespace NP {
 					// Relevant only if we have an IIP, otherwise the job is
 					// trivially priority-eligible.
 					if (iip.can_block &&
-					    !priority_eligible(j.latest_arrival(), already_scheduled, j))
+					    !priority_eligible(s, j, j.latest_arrival()))
 						continue;
 
 					// great, this job fits the bill
@@ -273,7 +273,7 @@ namespace NP {
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at
 					    && incomplete(s, j)
-				        && (!iip.can_block || priority_eligible(at, s.get_scheduled_jobs(), j))
+				        && (!iip.can_block || priority_eligible(s, j, at))
 					    && iip_eligible(s, j, at)) {
 					    DM("\t\t\t\tcertainly released at " << at << ":" << j << std::endl);
 						return true;
@@ -312,7 +312,7 @@ namespace NP {
 				            t_s, already_scheduled, j);
 			}
 
-			bool priority_eligible(Time t_s, const State &s, const Job<Time> &j)
+			bool priority_eligible(const State &s, const Job<Time> &j, Time t_s)
 			{
 				return priority_eligible(t_s, s.get_scheduled_jobs(), j);
 			}
@@ -345,7 +345,7 @@ namespace NP {
 					return false;
 				}
 				auto t_s = s.next_earliest_start_time(j);
-				if (!priority_eligible(t_s, s, j)) {
+				if (!priority_eligible(s, j, t_s)) {
 					DM("        * not priority eligible" <<  std::endl);
 					return false;
 				}
