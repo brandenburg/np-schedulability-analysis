@@ -71,7 +71,7 @@ namespace NP {
 
 			unsigned long number_of_states() const
 			{
-				return states.size();
+				return num_states;
 			}
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -143,14 +143,18 @@ namespace NP {
 			By_time_map jobs_by_earliest_arrival;
 
 			States states;
+			unsigned long num_states;
 			States_map states_by_key;
 			Todo_queue todo;
 
 			State_space(const Workload& jobs,
 			            std::size_t num_buckets = 1000)
 			: jobs_by_win(Interval<Time>{0, max_deadline(jobs)},
-			              max_deadline(jobs) / num_buckets),
-			  jobs(jobs), aborted(false), iip(*this, jobs)
+			              max_deadline(jobs) / num_buckets)
+			, jobs(jobs)
+			, aborted(false)
+			, iip(*this, jobs)
+			, num_states(0)
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -364,6 +368,7 @@ namespace NP {
 				State& s_ref = states.back();
 				todo.push_back(&s_ref);
 				states_by_key.insert(std::make_pair(s_ref.get_key(), &s_ref));
+				num_states++;
 				return s_ref;
 			}
 
