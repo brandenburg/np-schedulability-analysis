@@ -299,10 +299,14 @@ namespace NP {
 				return false;
 			}
 
+			bool _iip_eligible(const State &s, const Job<Time> &j, Time t)
+			{
+				return t <= iip.latest_start(j, t, s.get_scheduled_jobs());
+			}
+
 			bool iip_eligible(const State &s, const Job<Time> &j, Time t)
 			{
-				return !iip.can_block
-				       || t <= iip.latest_start(j, t, s.get_scheduled_jobs());
+				return !iip.can_block || _iip_eligible(s, j, t);
 			}
 
 			bool priority_eligible(Time t_s, const Scheduled& already_scheduled,
@@ -312,9 +316,9 @@ namespace NP {
 				            t_s, already_scheduled, j);
 			}
 
-			bool priority_eligible(const State &s, const Job<Time> &j, Time t_s)
+			bool priority_eligible(const State &s, const Job<Time> &j, Time t)
 			{
-				return priority_eligible(t_s, s.get_scheduled_jobs(), j);
+				return priority_eligible(t, s.get_scheduled_jobs(), j);
 			}
 
 			bool potentially_next(const State &s, const Job<Time> &j)

@@ -6,8 +6,7 @@
 #include <set>
 
 #include "jobs.hpp"
-
-#define CONFIG_COLLECT_SCHEDULE_GRAPH
+#include "cache.hpp"
 
 namespace NP {
 
