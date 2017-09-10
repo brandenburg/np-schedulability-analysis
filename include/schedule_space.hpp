@@ -207,10 +207,10 @@ namespace NP {
 
 			// find next time by which a job is certainly released on
 			// or after a given point in time
-			Time next_certain_job_release(
-				Time on_or_after,
-				const Scheduled &already_scheduled)
+			Time next_certain_job_release(const State& s, Time on_or_after)
 			{
+				const Scheduled &already_scheduled = s.get_scheduled_jobs();
+
 				for (auto it = jobs_by_latest_arrival.lower_bound(on_or_after);
 				     it != jobs_by_latest_arrival.end(); it++) {
 					const Job<Time>& j = *(it->second);
@@ -222,7 +222,7 @@ namespace NP {
 					// If the job is not IIP-eligible when it is certainly
 					// released, then there exists a schedule where it doesn't
 					// count, so skip it.
-					if (!iip.eligible(j, j.latest_arrival(), already_scheduled))
+					if (!iip_eligible(s, j, j.latest_arrival()))
 						continue;
 
 					// It must be priority-eligible when released, too.
@@ -268,14 +268,13 @@ namespace NP {
 
 			// returns true if there is certainly some pending job at the given
 			// time ready to be scheduled
-			bool exists_certainly_released_job(Time at,
-				const Scheduled& already_scheduled)
+			bool exists_certainly_released_job(const State &s, Time at)
 			{
 				for (const Job<Time>& j : jobs_by_win.lookup(at))
 					if (j.latest_arrival() <= at
-					    && incomplete(already_scheduled, j)
-				        && (!iip.can_block || priority_eligible(at, already_scheduled, j))
-					    && iip.eligible(j, at, already_scheduled)) {
+					    && incomplete(s, j)
+				        && (!iip.can_block || priority_eligible(at, s.get_scheduled_jobs(), j))
+					    && iip_eligible(s, j, at)) {
 					    DM("\t\t\t\tcertainly released at " << at << ":" << j << std::endl);
 						return true;
 					}
@@ -300,6 +299,12 @@ namespace NP {
 				return false;
 			}
 
+			bool iip_eligible(const State &s, const Job<Time> &j, Time t)
+			{
+				return !iip.can_block
+				       || t <= iip.latest_start(j, t, s.get_scheduled_jobs());
+			}
+
 			bool priority_eligible(Time t_s, const Scheduled& already_scheduled,
 			                       const Job<Time> &j)
 			{
@@ -317,15 +322,13 @@ namespace NP {
 				auto t_latest = s.latest_finish_time();
 				if (t_latest < j.earliest_arrival()) {
 					// any certainly pending at t_latest
-					if (exists_certainly_released_job(
-					        t_latest, s.get_scheduled_jobs()))
+					if (exists_certainly_released_job(s, t_latest))
 						// if something is certainly pending at t_latest and
 						// IIP-eligible, then j can't be next
 						return false;
 
 					// any certainly pending since then
-					Time r = next_certain_job_release(t_latest,
-					                                  s.get_scheduled_jobs());
+					Time r = next_certain_job_release(s, t_latest);
 					// if something else is certainly released before j and IIP-
 					// eligible at the time of certain release, then j can't
 					// possibly be next
@@ -350,7 +353,7 @@ namespace NP {
 					DM("        * not potentially next" <<  std::endl);
 					return false;
 				}
-				if (!iip.eligible(j, t_s, s.get_scheduled_jobs())) {
+				if (!iip_eligible(s, j, t_s)) {
 					DM("        * not IIP eligible" << std::endl);
 					return false;
 				}
@@ -454,8 +457,7 @@ namespace NP {
 					// Identify relevant interval for next job
 					// relevant job buckets
 					auto ts_min = s.earliest_finish_time();
-					auto latest_idle = next_certain_job_release(ts_min,
-					                                  s.get_scheduled_jobs());
+					auto latest_idle = next_certain_job_release(s, ts_min);
 
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};
@@ -567,8 +569,7 @@ namespace NP {
 					// Identify relevant interval for next job
 					// relevant job buckets
 					auto ts_min = s.earliest_finish_time();
-					auto latest_idle = next_certain_job_release(ts_min,
-					                                  s.get_scheduled_jobs());
+					auto latest_idle = next_certain_job_release(s, ts_min);
 
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};

@@ -19,11 +19,6 @@ namespace NP {
 
 			Null_IIP(const Space &space, const Jobs &jobs) {}
 
-			bool eligible(const Job<Time>& j, Time t, const Scheduled& as)
-			{
-				return true;
-			}
-
 			Time latest_start(const Job<Time>& j, Time t, const Scheduled& as)
 			{
 				return Time_model::constants<Time>::infinity();
@@ -49,11 +44,6 @@ namespace NP {
 					if (j.get_priority() == max_priority)
 						hp_jobs.insert({j.latest_arrival(), &j});
 				DM("IIP max priority = " << max_priority);
-			}
-
-			bool eligible(const Job<Time>& j, Time t, const Scheduled& as)
-			{
-				return t <= latest_start(j, t, as);
 			}
 
 			Time latest_start(const Job<Time>& j, Time t, const Scheduled& as)
@@ -118,11 +108,6 @@ namespace NP {
 			, max_cost(maximal_cost(jobs))
 			, n_tasks(count_tasks(jobs))
 			{
-			}
-
-			bool eligible(const Job<Time>& j, Time t, const Scheduled& as)
-			{
-				return t <= latest_start(j, t, as);
 			}
 
 			Time latest_start(const Job<Time>& j, Time t, const Scheduled& as)
