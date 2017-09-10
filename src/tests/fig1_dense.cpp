@@ -153,7 +153,4 @@ TEST_CASE("[dense time] Example in Figure 1(c)") {
 		CHECK(nspace.get_finish_times(j) == space.get_finish_times(j));
 		CHECK(nspace.get_finish_times(j).from() != 0);
 	}
-
-	for (const Job<dense_t>& j : jobs)
-		std::cout << j << " -> " << space.get_finish_times(j) << std::endl;
 }
