@@ -40,7 +40,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v1.earliest_finish_time() == doctest::Approx(0));
 		CHECK(v1.latest_finish_time() == doctest::Approx(0));
 
-		Uniproc::Schedule_state<dense_t> v2{v1, jobs[0], 0, 0, inf};
+		Uniproc::Schedule_state<dense_t> v2{v1, jobs[0], 0, inf, inf};
 
 		std::cout << "v1: " << v1 << std::endl;
 		std::cout << "     ---[ " << jobs[0] << " --->" << std::endl;
