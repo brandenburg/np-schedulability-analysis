@@ -80,21 +80,42 @@ namespace NP {
 				const Job<Time>* scheduled;
 				const State* source;
 				const State* target;
-				const Time latest_finish_time;
+				const Interval<Time> finish_range;
 
 				Edge(const Job<Time>* s, const State* src, const State* tgt,
-				     Time lft)
+				     const Interval<Time>& fr)
 				: scheduled(s)
 				, source(src)
 				, target(tgt)
-				, latest_finish_time(lft)
+				, finish_range(fr)
 				{
 				}
 
 				bool deadline_miss_possible() const
 				{
-					return scheduled->exceeds_deadline(latest_finish_time);
+					return scheduled->exceeds_deadline(finish_range.upto());
 				}
+
+				Time earliest_finish_time() const
+				{
+					return finish_range.from();
+				}
+
+				Time latest_finish_time() const
+				{
+					return finish_range.upto();
+				}
+
+				Time earliest_start_time() const
+				{
+					return finish_range.from() - scheduled->least_cost();
+				}
+
+				Time latest_start_time() const
+				{
+					return finish_range.upto() - scheduled->maximal_cost();
+				}
+
 			};
 
 			const std::deque<Edge>& get_edges() const
@@ -292,7 +313,7 @@ namespace NP {
 					    &j != &reference_job &&
 					    incomplete(already_scheduled, j) &&
 					    j.higher_priority_than(reference_job)) {
-					    DM("\t\t\t\t " << j << " <<HP<< " << reference_job);
+					    DM("\t\t\t\t " << j << " <<HP<< " << reference_job << std::endl);
 						return true;
 					}
 				return false;
@@ -445,7 +466,7 @@ namespace NP {
 				// update response times
 				update_finish_times(j, next.finish_range());
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-				edges.emplace_back(&j, &s, &next, next.latest_finish_time());
+				edges.emplace_back(&j, &s, &next, next.finish_range());
 #endif
 			}
 
@@ -456,7 +477,7 @@ namespace NP {
 				while (not_done() && !aborted) {
 					const State& s = next_state();
 
-					DM("\nLooking at: " << s << std::endl);
+					DM("\nLooking at: S" << (todo.front() - states.begin() + 1) << " " << s << std::endl);
 
 					// Identify relevant interval for next job
 					// relevant job buckets
@@ -550,7 +571,7 @@ namespace NP {
 						found.update_finish_range(goal.finish_range());
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 						edges.emplace_back(&j, &s, &(found),
-						                   goal.finish_range().upto());
+						                   goal.finish_range());
 #endif
 						return;
 					}
@@ -568,7 +589,7 @@ namespace NP {
 				while (not_done() && !aborted) {
 					const State& s = next_state();
 
-					DM("\nLooking at: " << s << std::endl);
+					DM("\nLooking at: S" << (todo.front() - states.begin()) << " " << s << std::endl);
 
 					// Identify relevant interval for next job
 					// relevant job buckets
@@ -659,12 +680,15 @@ namespace NP {
 						    << "T" << e.scheduled->get_task_id()
 						    << " J" << e.scheduled->get_id()
 						    << "\\nDL=" << e.scheduled->get_deadline()
-						    << "\\nLFT=" << e.latest_finish_time
+						    << "\\nES=" << e.earliest_start_time()
+ 						    << "\\nLS=" << e.latest_start_time()
+						    << "\\nEF=" << e.earliest_finish_time()
+						    << "\\nLF=" << e.latest_finish_time()
 						    << "\"";
 						if (e.deadline_miss_possible()) {
 							out << ",color=Red,fontcolor=Red";
 						}
-						out << "]"
+						out << ",fontsize=8" << "]"
 						    << ";"
 						    << std::endl;
 						if (e.deadline_miss_possible()) {
