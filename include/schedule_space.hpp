@@ -21,8 +21,7 @@
 
 #include "schedule_state.hpp"
 
-
-#define CONFIG_COLLECT_SCHEDULE_GRAPH
+// #define CONFIG_COLLECT_SCHEDULE_GRAPH
 
 namespace NP {
 
@@ -103,7 +102,7 @@ namespace NP {
 				return edges;
 			}
 
-			const std::list<State>& get_states() const
+			const std::deque<State>& get_states() const
 			{
 				return states;
 			}
@@ -113,8 +112,8 @@ namespace NP {
 
 			typedef Job_set<Time> Scheduled;
 
-			typedef std::list<State> States;
-			typedef typename std::list<State>::iterator State_ref;
+			typedef std::deque<State> States;
+			typedef typename std::deque<State>::iterator State_ref;
 			typedef std::unordered_multimap<hash_value_t, State_ref> States_map;
 
 			typedef const Job<Time>* Job_ref;
@@ -417,8 +416,9 @@ namespace NP {
 					}
 				assert(deleted);
 
-				// delete from master list to free up memory
-				states.erase(s);
+				// delete from master sequence to free up memory
+				assert(states.begin() == s);
+				states.pop_front();
 #endif
 			}
 
