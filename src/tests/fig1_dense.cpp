@@ -63,7 +63,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		std::cout << "v4: " << v4 << std::endl;
 
 		CHECK(v4.earliest_finish_time() == doctest::Approx(11));
-		CHECK(v4.latest_finish_time() == doctest::Approx(22));
+		CHECK(v4.latest_finish_time() == doctest::Approx(23));
 
 		Uniproc::Schedule_state<dense_t> v6{v4, jobs[1], 1, inf, inf};
 
@@ -71,7 +71,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		std::cout << "v6: " << v6 << std::endl;
 
 		CHECK(v6.earliest_finish_time() == doctest::Approx(12));
-		CHECK(v6.latest_finish_time() == doctest::Approx(24));
+		CHECK(v6.latest_finish_time() == doctest::Approx(25));
 
 		Uniproc::Schedule_state<dense_t> v8{v6, jobs[2], 2, inf, inf};
 
@@ -79,7 +79,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		std::cout << "v8: " << v8 << std::endl;
 
 		CHECK(v8.earliest_finish_time() == doctest::Approx(21));
-		CHECK(v8.latest_finish_time() == doctest::Approx(26));
+		CHECK(v8.latest_finish_time() == doctest::Approx(27));
 
 
 		std::cout << "==========[ lower branch ]=========" << std::endl;
