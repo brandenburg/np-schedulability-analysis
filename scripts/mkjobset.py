@@ -45,6 +45,9 @@ def scale_job(j, factor):
         absolute_deadline=down(j.absolute_deadline)
     )
 
+def remove_jitter(j):
+    return j._replace(arrival_range=(j.arrival_range[0], j.arrival_range[0]))
+
 def parse_task_set(fname):
     f = open(fname, 'r')
     data = csv.DictReader(f, skipinitialspace=True)
@@ -112,6 +115,9 @@ def parse_args():
     parser.add_argument('--rate-monotonic', dest='priority_policy', default='EDF',
                         action='store_const', const='RM', help='how to assing job prios')
 
+    parser.add_argument('--no-jitter', dest='disregard_jitter', default=False,
+                        action='store_true', help='generate job sets without jitter')
+
     parser.add_argument('--scale-to-nanos', dest='scale', default=False,
                         action='store_const', const=True, help='generate integer parameters')
 
@@ -137,6 +143,8 @@ def main():
     print(csv_header())
     for t in tasks:
         for j in generate_jobs(t, h):
+            if opts.disregard_jitter:
+                j = remove_jitter(j)
             if opts.scale:
                 j = scale_job(j, US_TO_NS)
             print(format_csv(j, prio))
