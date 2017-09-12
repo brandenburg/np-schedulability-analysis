@@ -96,7 +96,7 @@ template<class T, class X, Interval<T> (*map)(const X&)> class Interval_lookup_t
 	std::size_t bucket_of(const T& point) const
 	{
 		if (range.contains(point)) {
-			return ((point - range.from()) / width);
+			return static_cast<std::size_t>((point - range.from()) / width);
 		} else if (point < range.from()) {
 			return 0;
 		} else
@@ -104,9 +104,9 @@ template<class T, class X, Interval<T> (*map)(const X&)> class Interval_lookup_t
 	}
 
 	Interval_lookup_table(const Interval<T>& range, T bucket_width)
-	: range(range), width(std::max(bucket_width, static_cast<T>(1))),
-	  num_buckets(3 + (range.length() /
-					   std::max(bucket_width, static_cast<T>(1))))
+	: range(range)
+	, width(std::max(bucket_width, static_cast<T>(1)))
+	, num_buckets(std::max(static_cast<std::size_t>(range.length() / this->width), static_cast<std::size_t>(1)))
 	{
 		buckets = std::make_unique<Bucket[]>(num_buckets);
 	}
