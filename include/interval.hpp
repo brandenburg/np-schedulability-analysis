@@ -1,6 +1,7 @@
 #ifndef INTERVAL_HPP
 #define INTERVAL_HPP
 
+#include <cassert>
 #include <ostream>
 #include <memory>
 #include <vector>
@@ -106,7 +107,9 @@ template<class T, class X, Interval<T> (*map)(const X&)> class Interval_lookup_t
 	Interval_lookup_table(const Interval<T>& range, T bucket_width)
 	: range(range)
 	, width(std::max(bucket_width, static_cast<T>(1)))
-	, num_buckets(std::max(static_cast<std::size_t>(range.length() / this->width), static_cast<std::size_t>(1)))
+	, num_buckets(1 + std::max(
+	                  static_cast<std::size_t>(range.length() / this->width),
+	                  static_cast<std::size_t>(1)))
 	{
 		buckets = std::make_unique<Bucket[]>(num_buckets);
 	}
@@ -115,6 +118,8 @@ template<class T, class X, Interval<T> (*map)(const X&)> class Interval_lookup_t
 	{
 		Interval<T> w = map(x);
 		auto a = bucket_of(w.from()), b = bucket_of(w.until());
+		assert(a < num_buckets);
+		assert(b < num_buckets);
 		for (auto i = a; i <= b; i++)
 			buckets[i].push_back(x);
 	}
