@@ -172,6 +172,7 @@ namespace NP {
 
 			By_time_map jobs_by_latest_arrival;
 			By_time_map jobs_by_earliest_arrival;
+			By_time_map jobs_by_deadline;
 
 			States states;
 			unsigned long num_states, num_edges, width;
@@ -192,6 +193,7 @@ namespace NP {
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
 					jobs_by_earliest_arrival.insert({j.earliest_arrival(), &j});
+					jobs_by_deadline.insert({j.get_deadline(), &j});
 					jobs_by_win.insert(j);
 				}
 			}
@@ -235,6 +237,39 @@ namespace NP {
 			bool incomplete(const State& s, const Job<Time>& j) const
 			{
 				return incomplete(s.get_scheduled_jobs(), j);
+			}
+
+			void check_for_deadline_misses(const State& s, const State& new_s)
+			{
+				// check if we skipped any jobs that are now guaranteed
+				// to miss their deadline
+				for (auto it = jobs_by_deadline
+				               .lower_bound(s.earliest_finish_time());
+				     it != jobs_by_deadline.end(); it++) {
+					const Job<Time>& j = *(it->second);
+					if (j.get_deadline() <= new_s.earliest_finish_time()) {
+						if (incomplete(new_s, j)) {
+							// This job is still incomplete but has no chance
+							// of being scheduled before its deadline anymore.
+							// Abort.
+							aborted = true;
+							// create a dummy state for explanation purposes
+							auto inf = Time_model::constants<Time>::infinity();
+							const State& next = new_state(new_s, j, index_of(j),
+							                              inf, inf);
+							// update response times
+							update_finish_times(j, next.finish_range());
+#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
+							edges.emplace_back(&j, &new_s, &next,
+							                   next.finish_range());
+#endif
+							num_edges++;
+							break;
+						}
+					} else
+						// deadlines now after the next earliest finish time
+						break;
+				}
 			}
 
 			// find next time by which a job is certainly released
@@ -515,6 +550,7 @@ namespace NP {
 				const State& next = new_state(s, j, index_of(j), other_certain_start, iip_latest_start);
 				// update response times
 				update_finish_times(j, next.finish_range());
+				check_for_deadline_misses(s, next);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 				edges.emplace_back(&j, &s, &next, next.finish_range());
 #endif
@@ -664,7 +700,6 @@ namespace NP {
 								DM("        --> ok!"  << std::endl);
 								// create the relevant state and continue
 								schedule(s, j);
-								//new_state(schedule_naively(s, j));
 								found_at_least_one = true;
 							}
 						} else {
