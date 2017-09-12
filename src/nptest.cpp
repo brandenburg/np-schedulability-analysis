@@ -22,7 +22,7 @@ static bool want_dot_graph;
 
 struct Analysis_result {
 	bool schedulable;
-	unsigned long number_of_states;
+	unsigned long number_of_states, number_of_edges, max_width, number_of_jobs;
 	double cpu_time;
 	std::string graph;
 };
@@ -45,7 +45,15 @@ static Analysis_result analyze(std::istream &in)
 		graph << space;
 #endif
 
-	return {space.is_schedulable(), space.number_of_states(), c, graph.str()};
+	return {
+		space.is_schedulable(),
+		space.number_of_states(),
+		space.number_of_edges(),
+		space.max_exploration_front_width(),
+		jobs.size(),
+		c,
+		graph.str()
+	};
 }
 
 static Analysis_result process_stream(std::istream &in)
@@ -89,15 +97,18 @@ static void process_file(const std::string& fname)
 		}
 
 		struct rusage u;
-		long bytes_used = 0;
+		long mem_used = 0;
 		if (getrusage(RUSAGE_SELF, &u) == 0)
-			bytes_used = u.ru_maxrss;
+			mem_used = u.ru_maxrss;
 
 		std::cout << fname
 		          << ",  " << (int) result.schedulable
+		          << ",  " << result.number_of_jobs
 		          << ",  " << result.number_of_states
+		          << ",  " << result.number_of_edges
+		          << ",  " << result.max_width
 		          << ",  " << std::fixed << result.cpu_time
-		          << ",  " << ((double) bytes_used) / (1024 * 1024)
+		          << ",  " << ((double) mem_used) / (1024.0)
 		          << std::endl;
 	} catch (std::ios_base::failure& ex) {
 		std::cerr << fname << ": parse error" << std::endl;

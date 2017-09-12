@@ -74,6 +74,16 @@ namespace NP {
 				return num_states;
 			}
 
+			unsigned long number_of_edges() const
+			{
+				return num_edges;
+			}
+
+			unsigned long max_exploration_front_width() const
+			{
+				return width;
+			}
+
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 
 			struct Edge {
@@ -164,7 +174,7 @@ namespace NP {
 			By_time_map jobs_by_earliest_arrival;
 
 			States states;
-			unsigned long num_states;
+			unsigned long num_states, num_edges, width;
 			States_map states_by_key;
 			Todo_queue todo;
 
@@ -176,6 +186,8 @@ namespace NP {
 			, aborted(false)
 			, iip(*this, jobs)
 			, num_states(0)
+			, num_edges(0)
+			, width(0)
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -398,6 +410,7 @@ namespace NP {
 				todo.push_back(s_ref);
 				states_by_key.insert(std::make_pair(s_ref->get_key(), s_ref));
 				num_states++;
+				width = std::max(width, (unsigned long) todo.size() - 1);
 				return *s_ref;
 			}
 
@@ -468,6 +481,7 @@ namespace NP {
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 				edges.emplace_back(&j, &s, &next, next.finish_range());
 #endif
+				num_edges++;
 			}
 
 			void explore_naively()
@@ -573,6 +587,7 @@ namespace NP {
 						edges.emplace_back(&j, &s, &(found),
 						                   goal.finish_range());
 #endif
+						num_edges++;
 						return;
 					}
 				}
