@@ -262,18 +262,26 @@ TEST_CASE("[NP state space] Equal-priority simultaneous arrivals") {
 	CHECK(nspace.get_finish_times(jobs[1]).until() ==  10 + 50 + 150);
 }
 
-TEST_CASE("[NP state space] notice skipped-over jobs") {
+TEST_CASE("[NP state space] don't skip over deadline-missing jobs") {
 	Uniproc::State_space<dtime_t>::Workload jobs{
 		Job<dtime_t>{1, I(  100,   100),  I(   2,    50),   200, 1},
 		Job<dtime_t>{2, I(    0,     0),  I(1200,  1200),  5000, 2},
 		Job<dtime_t>{3, I(  200,   250),  I( 2,    50),    6000, 3},
+		Job<dtime_t>{4, I(  200,   250),  I( 2,    50),    6000, 4},
+		Job<dtime_t>{5, I(  200,   250),  I( 2,    50),    6000, 5},
 	};
 
 	auto nspace = Uniproc::State_space<dtime_t>::explore_naively(jobs);
 	CHECK(!nspace.is_schedulable());
 
+	CHECK(nspace.number_of_edges() == 2);
+	CHECK(nspace.number_of_states() == 3);
+
 	auto space = Uniproc::State_space<dtime_t>::explore(jobs);
 	CHECK(!space.is_schedulable());
+
+	CHECK(space.number_of_edges() == 2);
+	CHECK(space.number_of_states() == 3);
 }
 
 TEST_CASE("[NP state space] explore across bucket boundaries") {
