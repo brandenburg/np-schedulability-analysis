@@ -508,9 +508,8 @@ namespace NP {
 					// (1) first check jobs that can be already pending
 					for (const Job<Time>& j : jobs_by_win.lookup(ts_min)) {
 						DM("    -?? " << j << std::endl);
-						// if it is potentially active in the range of
-						// interest...
-						if (j.scheduling_window().intersects(next_range))
+						// if it is potentially active at ts_min...
+						if (j.earliest_arrival() <= ts_min) {
 							// if it can be scheduled next...
 							if (is_eligible_successor(s, j)) {
 								DM("        --> ok!"  << std::endl);
@@ -518,6 +517,7 @@ namespace NP {
 								schedule_naively(s, j);
 								found_at_least_one = true;
 							}
+						}
 					}
 					// (2) check jobs that are released later in the interval
 					for (auto it = jobs_by_earliest_arrival.upper_bound(ts_min);
@@ -621,9 +621,8 @@ namespace NP {
 					// (1) first check jobs that can be already pending
 					for (const Job<Time>& j : jobs_by_win.lookup(ts_min)) {
 						DM("    -?? " << j << std::endl);
-						// if it is potentially active in the range of
-						// interest...
-						if (j.scheduling_window().intersects(next_range)) {
+						// if it is potentially active at ts_min...
+						if (j.earliest_arrival() <= ts_min) {
 							// if it can be scheduled next...
 							if (is_eligible_successor(s, j)) {
 								DM("        --> ok!"  << std::endl);

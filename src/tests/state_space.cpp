@@ -275,3 +275,22 @@ TEST_CASE("[NP state space] notice skipped-over jobs") {
 	auto space = Uniproc::State_space<dtime_t>::explore(jobs);
 	CHECK(!space.is_schedulable());
 }
+
+TEST_CASE("[NP state space] explore across bucket boundaries") {
+	Uniproc::State_space<dtime_t>::Workload jobs{
+		Job<dtime_t>{1, I(  100,   100),  I(  50,   50),  10000, 1},
+		Job<dtime_t>{2, I( 3000,  3000),  I(4000, 4000),  10000, 2},
+		Job<dtime_t>{3, I( 6000,  6000),  I(   2,    2),  10000, 3},
+	};
+
+	auto nspace = Uniproc::State_space<dtime_t>::explore_naively(jobs, 2);
+	CHECK(nspace.is_schedulable());
+
+	CHECK(nspace.number_of_edges() == 3);
+
+	auto space = Uniproc::State_space<dtime_t>::explore(jobs, 2);
+	CHECK(space.is_schedulable());
+
+	CHECK(space.number_of_edges() == 3);
+}
+

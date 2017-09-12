@@ -61,6 +61,11 @@ namespace NP {
 			return arrival.until();
 		}
 
+		const Interval<Time>& arrival_window() const
+		{
+			return arrival;
+		}
+
 		Time least_cost() const
 		{
 			return cost.from();
