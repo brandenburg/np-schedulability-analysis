@@ -118,6 +118,9 @@ def parse_args():
     parser.add_argument('--no-jitter', dest='disregard_jitter', default=False,
                         action='store_true', help='generate job sets without jitter')
 
+    parser.add_argument('--sort-by-deadline', dest='sorted_by_deadline', default=False,
+                        action='store_true', help='sort the jobs by increasing deadline')
+
     parser.add_argument('--scale-to-nanos', dest='scale', default=False,
                         action='store_const', const=True, help='generate integer parameters')
 
@@ -141,13 +144,18 @@ def main():
     h = hyperperiod(tasks)
 
     print(csv_header())
+    jobs = []
     for t in tasks:
         for j in generate_jobs(t, h):
             if opts.disregard_jitter:
                 j = remove_jitter(j)
             if opts.scale:
                 j = scale_job(j, US_TO_NS)
-            print(format_csv(j, prio))
+            jobs.append(j)
+    if opts.sorted_by_deadline:
+        jobs.sort(key=lambda j: j.absolute_deadline)
+    for j in jobs:
+        print(format_csv(j, prio))
 
 
 if __name__ == '__main__':
