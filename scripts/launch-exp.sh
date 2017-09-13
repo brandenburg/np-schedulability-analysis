@@ -2,9 +2,16 @@
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-INPUT_FILE="$1"
-shift
-CMD="$*"
+LAST=""
+CMD=""
+while ! [ -z "$1" ]
+do
+    CMD="$CMD $LAST"
+    LAST=$1
+    shift
+done
+
+INPUT_FILE="$LAST"
 
 NAME=`basename "$INPUT_FILE"`
 OUTPUT_FILE=${NAME/.csv/.out}
