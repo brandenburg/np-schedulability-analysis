@@ -150,7 +150,7 @@ namespace NP {
 			typedef const Job<Time>* Job_ref;
 			typedef std::multimap<Time, Job_ref> By_time_map;
 
-			typedef std::vector< std::deque<State_ref> > Todo_queue;
+			typedef std::deque<State_ref> Todo_queue;
 
 			typedef Interval_lookup_table<Time, Job<Time>, Job<Time>::scheduling_window> Jobs_lut;
 
@@ -177,8 +177,12 @@ namespace NP {
 			States states;
 			unsigned long num_states, num_edges, width;
 			States_map states_by_key;
-			Todo_queue todo;
+
+			static const std::size_t num_todo_queues = 3;
+
+			Todo_queue todo[num_todo_queues];
 			int todo_idx;
+			unsigned long current_job_count;
 
 			State_space(const Workload& jobs,
 			            std::size_t num_buckets = 1000)
@@ -191,7 +195,7 @@ namespace NP {
 			, num_edges(0)
 			, width(0)
 			, todo_idx(0)
-			, todo(jobs.size() + 1)
+			, current_job_count(0)
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -483,19 +487,27 @@ namespace NP {
 			{
 				states.emplace_back(std::forward<Args>(args)...);
 				State_ref s_ref = --states.end();
-				auto idx = s_ref->get_scheduled_jobs().number_of_jobs();
+
+				auto njobs = s_ref->get_scheduled_jobs().number_of_jobs();
+				assert (
+					(!njobs && num_states == 0) // initial state
+				    || (njobs == current_job_count + 1) // normal State
+				    || (njobs == current_job_count + 2 && aborted) // deadline miss
+				);
+				auto idx = njobs % num_todo_queues;
 				todo[idx].push_back(s_ref);
 				states_by_key.insert(std::make_pair(s_ref->get_key(), s_ref));
 				num_states++;
-				width = std::max(width, (unsigned long) todo.size() - 1);
 				width = std::max(width, (unsigned long) todo[idx].size() - 1);
 				return *s_ref;
 			}
 
 			const State& next_state()
 			{
-				if (todo[todo_idx].empty())
-					todo_idx++;
+				if (todo[todo_idx].empty()) {
+					current_job_count++;
+					todo_idx = current_job_count % num_todo_queues;
+				}
 				auto s = todo[todo_idx].front();
 				return *s;
 			}
@@ -538,7 +550,7 @@ namespace NP {
 
 			bool not_done()
 			{
-				return todo_idx < jobs.size() || !todo[todo_idx].empty();
+				return current_job_count < jobs.size() || !todo[todo_idx].empty();
 			}
 
 			// naive: no state merging
