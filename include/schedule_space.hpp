@@ -14,6 +14,7 @@
 #include <cassert>
 
 #include "jobs.hpp"
+#include "clock.hpp"
 
 // DM : debug message -- disable for now
 // #define DM(x) std::cerr << x
@@ -38,19 +39,25 @@ namespace NP {
 
 			static State_space explore_naively(
 					const Workload& jobs,
+					double timeout = 0,
 					std::size_t num_buckets = 1000)
 			{
-				auto s = State_space(jobs, num_buckets);
+				auto s = State_space(jobs, timeout, num_buckets);
+				s.cpu_time.start();
 				s.explore_naively();
+				s.cpu_time.stop();
 				return s;
 			}
 
 			static State_space explore(
 					const Workload& jobs,
+					double timeout = 0,
 					std::size_t num_buckets = 1000)
 			{
-				auto s = State_space(jobs, num_buckets);
+				auto s = State_space(jobs, timeout, num_buckets);
+				s.cpu_time.start();
 				s.explore();
+				s.cpu_time.stop();
 				return s;
 			}
 
@@ -69,6 +76,11 @@ namespace NP {
 				return !aborted;
 			}
 
+			bool was_timed_out() const
+			{
+				return timed_out;
+			}
+
 			unsigned long number_of_states() const
 			{
 				return num_states;
@@ -82,6 +94,11 @@ namespace NP {
 			unsigned long max_exploration_front_width() const
 			{
 				return width;
+			}
+
+			double get_cpu_time() const
+			{
+				return cpu_time;
 			}
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -165,6 +182,7 @@ namespace NP {
 
 			Response_times rta;
 			bool aborted;
+			bool timed_out;
 
 			const Workload& jobs;
 
@@ -184,12 +202,18 @@ namespace NP {
 			int todo_idx;
 			unsigned long current_job_count;
 
+			Processor_clock cpu_time;
+			double timeout;
+
 			State_space(const Workload& jobs,
+						double max_cpu_time = 0,
 			            std::size_t num_buckets = 1000)
 			: jobs_by_win(Interval<Time>{0, max_deadline(jobs)},
 			              max_deadline(jobs) / num_buckets)
 			, jobs(jobs)
 			, aborted(false)
+			, timed_out(false)
+			, timeout(max_cpu_time)
 			, iip(*this, jobs)
 			, num_states(0)
 			, num_edges(0)
@@ -520,6 +544,14 @@ namespace NP {
 				return false;
 			}
 
+			void check_cpu_timeout()
+			{
+				if (timeout && get_cpu_time() > timeout) {
+					aborted = true;
+					timed_out = true;
+				}
+			}
+
 			void done_with_current_state()
 			{
 				State_ref s = todo[todo_idx].front();
@@ -636,6 +668,7 @@ namespace NP {
 					}
 
 					done_with_current_state();
+					check_cpu_timeout();
 				}
 			}
 
@@ -756,6 +789,7 @@ namespace NP {
 					}
 
 					done_with_current_state();
+					check_cpu_timeout();
 				}
 			}
 

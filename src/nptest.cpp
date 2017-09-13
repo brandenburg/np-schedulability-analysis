@@ -18,10 +18,11 @@ static bool want_cw_iip;
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 static bool want_dot_graph;
 #endif
-
+static double timeout;
 
 struct Analysis_result {
 	bool schedulable;
+	bool timeout;
 	unsigned long number_of_states, number_of_edges, max_width, number_of_jobs;
 	double cpu_time;
 	std::string graph;
@@ -30,14 +31,11 @@ struct Analysis_result {
 template<class Time, class Space>
 static Analysis_result analyze(std::istream &in)
 {
-	auto c = Processor_clock();
 	auto jobs = NP::parse_file<Time>(in);
 
-	c.start();
 	auto space = want_naive ?
-		Space::explore_naively(jobs) :
-		Space::explore(jobs);
-	c.stop();
+		Space::explore_naively(jobs, timeout) :
+		Space::explore(jobs, timeout);
 
 	auto graph = std::ostringstream();
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -47,11 +45,12 @@ static Analysis_result analyze(std::istream &in)
 
 	return {
 		space.is_schedulable(),
+		space.was_timed_out(),
 		space.number_of_states(),
 		space.number_of_edges(),
 		space.max_exploration_front_width(),
 		jobs.size(),
-		c,
+		space.get_cpu_time(),
 		graph.str()
 	};
 }
@@ -109,6 +108,7 @@ static void process_file(const std::string& fname)
 		          << ",  " << result.max_width
 		          << ",  " << std::fixed << result.cpu_time
 		          << ",  " << ((double) mem_used) / (1024.0)
+		          << ",  " << (int) result.timeout
 		          << std::endl;
 	} catch (std::ios_base::failure& ex) {
 		std::cerr << fname << ": parse error" << std::endl;
@@ -126,6 +126,10 @@ int main(int argc, char** argv)
 	      .metavar("TIME-MODEL")
 	      .choices({"dense", "discrete"}).set_default("discrete")
 	      .help("choose 'discrete' or 'dense' time (default: discrete)");
+
+	parser.add_option("-l", "--time-limit").dest("timeout")
+	      .help("maximum CPU time allowed (in seconds, zero means none)")
+	      .set_default("0");
 
 	parser.add_option("-n", "--naive").dest("naive").set_default("0")
 	      .action("store_const").set_const("1")
@@ -152,6 +156,8 @@ int main(int argc, char** argv)
 	want_cw_iip = iip == "CW";
 
 	want_naive = options.get("naive");
+
+	timeout = options.get("timeout");
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	want_dot_graph = options.get("dot");
