@@ -150,7 +150,7 @@ namespace NP {
 			typedef const Job<Time>* Job_ref;
 			typedef std::multimap<Time, Job_ref> By_time_map;
 
-			typedef std::deque<State_ref> Todo_queue;
+			typedef std::vector< std::deque<State_ref> > Todo_queue;
 
 			typedef Interval_lookup_table<Time, Job<Time>, Job<Time>::scheduling_window> Jobs_lut;
 
@@ -178,6 +178,7 @@ namespace NP {
 			unsigned long num_states, num_edges, width;
 			States_map states_by_key;
 			Todo_queue todo;
+			int todo_idx;
 
 			State_space(const Workload& jobs,
 			            std::size_t num_buckets = 1000)
@@ -189,6 +190,8 @@ namespace NP {
 			, num_states(0)
 			, num_edges(0)
 			, width(0)
+			, todo_idx(0)
+			, todo(jobs.size() + 1)
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -480,16 +483,20 @@ namespace NP {
 			{
 				states.emplace_back(std::forward<Args>(args)...);
 				State_ref s_ref = --states.end();
-				todo.push_back(s_ref);
+				auto idx = s_ref->get_scheduled_jobs().number_of_jobs();
+				todo[idx].push_back(s_ref);
 				states_by_key.insert(std::make_pair(s_ref->get_key(), s_ref));
 				num_states++;
 				width = std::max(width, (unsigned long) todo.size() - 1);
+				width = std::max(width, (unsigned long) todo[idx].size() - 1);
 				return *s_ref;
 			}
 
 			const State& next_state()
 			{
-				auto s = todo.front();
+				if (todo[todo_idx].empty())
+					todo_idx++;
+				auto s = todo[todo_idx].front();
 				return *s;
 			}
 
@@ -503,9 +510,9 @@ namespace NP {
 
 			void done_with_current_state()
 			{
-				State_ref s = todo.front();
+				State_ref s = todo[todo_idx].front();
 				// remove from TODO list
-				todo.pop_front();
+				todo[todo_idx].pop_front();
 
 #ifndef CONFIG_COLLECT_SCHEDULE_GRAPH
 				// If we don't need to collect all states, we can remove
@@ -531,7 +538,7 @@ namespace NP {
 
 			bool not_done()
 			{
-				return !todo.empty();
+				return todo_idx < jobs.size() || !todo[todo_idx].empty();
 			}
 
 			// naive: no state merging
