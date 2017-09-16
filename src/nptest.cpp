@@ -34,8 +34,8 @@ static Analysis_result analyze(std::istream &in)
 	auto jobs = NP::parse_file<Time>(in);
 
 	auto space = want_naive ?
-		Space::explore_naively(jobs, timeout) :
-		Space::explore(jobs, timeout);
+		Space::explore_naively(jobs, timeout, jobs.size()) :
+		Space::explore(jobs, timeout, jobs.size());
 
 	auto graph = std::ostringstream();
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
