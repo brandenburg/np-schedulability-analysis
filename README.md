@@ -53,13 +53,13 @@ $ ./runtests
 The tool operates on CSV files with a fixed column order. Each input CSV file is expected to contain a set of jobs, where each row specifies one job. The following columns are expected.
 
 1.   **Task ID** — an arbitrary numeric ID to identify the task to which a job belongs
--   **Job ID** — a unique numeric ID that identifies the job
--   **Arrival min** — the earliest-possible release time of the job
--   **Arrival max** — the latest-possible release time of the job
--   **Cost min** — the best-case execution time of the job (can be zero)
--   **Cost max** — the worst-case execution time of the job
--   **Deadline** — the absolute deadline of the job
--   **Priority** — the priority of the job (EDF: set it equal to the deadline)
+2.   **Job ID** — a unique numeric ID that identifies the job
+3.   **Arrival min** — the earliest-possible release time of the job
+4.   **Arrival max** — the latest-possible release time of the job
+5.   **Cost min** — the best-case execution time of the job (can be zero)
+6.   **Cost max** — the worst-case execution time of the job
+7.   **Deadline** — the absolute deadline of the job
+8.   **Priority** — the priority of the job (EDF: set it equal to the deadline)
 
 All numeric parameters can be 64-bit integers (preferred) or floating point values (slower, not recommended). 
 
