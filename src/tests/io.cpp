@@ -56,3 +56,74 @@ TEST_CASE("[dense time] file parser") {
 	CHECK(jobs[1].get_deadline() == 20000);
 	CHECK(jobs[2].get_deadline() == 30000);
 }
+
+TEST_CASE("[disc time] don't parse dense files") {
+	auto in = std::istringstream(four_lines);
+
+	REQUIRE_THROWS_AS(NP::parse_job<dtime_t>(in), std::ios_base::failure);
+}
+
+const std::string precedence_line = "1, 2, 3, 5";
+
+const std::string bad_precedence_line = "1, 2, 3,";
+const std::string bad_precedence_line2 = "1, 2, 3x, 5";
+
+TEST_CASE("[parser] JobID") {
+	auto in = std::istringstream(precedence_line);
+
+	auto id = NP::parse_job_id(in);
+
+	CHECK(id.job  == 2);
+	CHECK(id.task == 1);
+}
+
+TEST_CASE("[parser] precedence constraint") {
+	auto in = std::istringstream(precedence_line);
+
+	auto c = NP::parse_precedence_constraint(in);
+
+	CHECK(c.first.job  == 2);
+	CHECK(c.first.task == 1);
+	CHECK(c.second.job  == 5);
+	CHECK(c.second.task == 3);
+}
+
+TEST_CASE("[parser] too-short precedence constraint") {
+	auto in = std::istringstream(bad_precedence_line);
+
+	REQUIRE_THROWS_AS(NP::parse_precedence_constraint(in), std::ios_base::failure);
+}
+
+TEST_CASE("[parser] invalid precedence constraint") {
+	auto in = std::istringstream(bad_precedence_line2);
+
+	REQUIRE_THROWS_AS(NP::parse_precedence_constraint(in), std::ios_base::failure);
+}
+
+const std::string precedence_file =
+"Predecessor TID,	Predecessor JID,	Successor TID,	Successor JID\n"
+"              1,                 1,               1,             2\n"
+"              1,                 1,               2,             1\n"
+"              2,                 1,               3,            13\n";
+
+TEST_CASE("[parser] precedence file") {
+	auto in = std::istringstream(precedence_file);
+
+	auto dag = NP::parse_dag_file(in);
+
+	CHECK(dag.size() == 3);
+	CHECK(dag[0].first.task  == 1);
+	CHECK(dag[0].first.job   == 1);
+	CHECK(dag[0].second.task == 1);
+	CHECK(dag[0].second.job  == 2);
+
+	CHECK(dag[1].first.task  == 1);
+	CHECK(dag[1].first.job   == 1);
+	CHECK(dag[1].second.task == 2);
+	CHECK(dag[1].second.job  == 1);
+
+	CHECK(dag[2].first.task  == 2);
+	CHECK(dag[2].first.job   == 1);
+	CHECK(dag[2].second.task == 3);
+	CHECK(dag[2].second.job  == 13);
+}
