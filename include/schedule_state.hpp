@@ -5,6 +5,7 @@
 
 #include <set>
 
+#include "index_set.hpp"
 #include "jobs.hpp"
 #include "cache.hpp"
 
@@ -14,82 +15,7 @@ namespace NP {
 
 	namespace Uniproc {
 
-		template<class Time> class Job_set
-		{
-			public:
-
-			typedef std::vector<bool> Set_type;
-
-			// new empty job set
-			Job_set() : the_set() {}
-
-			// derive a new job set by "cloning" an existing set and adding a job
-			Job_set(const Job_set& from, const Job<Time>* njob, std::size_t idx)
-			: the_set(std::max(from.the_set.size(), idx + 1))
-			{
-				std::copy(from.the_set.begin(), from.the_set.end(), the_set.begin());
-				the_set[idx] = true;
-			}
-
-			// create the diff of two job sets (intended for debugging only)
-			Job_set(const Job_set &a, const Job_set &b)
-			: the_set(std::max(a.the_set.size(), b.the_set.size()), true)
-			{
-				auto limit = std::min(a.the_set.size(), b.the_set.size());
-				for (unsigned int i = 0; i < limit; i++)
-					the_set[i] = a.contains(i) ^ b.contains(i);
-			}
-
-			bool operator==(const Job_set &other) const
-			{
-				return the_set == other.the_set;
-			}
-
-			bool operator!=(const Job_set &other) const
-			{
-				return the_set != other.the_set;
-			}
-
-			bool contains(std::size_t idx) const
-			{
-				return the_set.size() > idx && the_set[idx];
-			}
-
-			std::size_t number_of_jobs() const
-			{
-				std::size_t count = 0;
-				for (auto x : the_set)
-					if (x)
-						count++;
-				return count;
-			}
-
-			friend std::ostream& operator<< (std::ostream& stream,
-			                                 const Job_set<Time>& s)
-			{
-				bool first = true;
-				stream << "{";
-				for (auto i = 0; i < s.the_set.size(); i++)
-					if (s.the_set[i]) {
-						if (!first)
-							stream << ", ";
-						first = false;
-						stream << i;
-					}
-				stream << "}";
-
-				return stream;
-			}
-
-			private:
-
-			Set_type the_set;
-
-			// no accidental copies
-			Job_set(const Job_set& origin) = delete;
-		};
-
-
+		typedef Index_set Job_set;
 
 		template<class Time> class Schedule_state
 		{
@@ -97,14 +23,8 @@ namespace NP {
 
 			Interval<Time> finish_time;
 
-			Job_set<Time> scheduled_jobs;
+			Job_set scheduled_jobs;
 			hash_value_t lookup_key;
-
-			Schedule_state(Time eft, Time lft, const Job_set<Time> &jobs,
-						   hash_value_t k)
-			: finish_time{eft, lft}, scheduled_jobs{jobs}, lookup_key{k}
-			{
-			}
 
 			// no accidental copies
 			Schedule_state(const Schedule_state& origin)  = delete;
@@ -128,7 +48,7 @@ namespace NP {
 			: finish_time{from.next_earliest_finish_time(j),
 			              from.next_latest_finish_time(j, other_certain_start,
 			                                          iip_latest_start)}
-			, scheduled_jobs{from.scheduled_jobs, &j, idx}
+			, scheduled_jobs{from.scheduled_jobs, idx}
 			, lookup_key{from.next_key(j)}
 			{
 				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);
@@ -163,7 +83,7 @@ namespace NP {
 				return lookup_key;
 			}
 
-			const Job_set<Time>& get_scheduled_jobs() const
+			const Job_set& get_scheduled_jobs() const
 			{
 				return scheduled_jobs;
 			}

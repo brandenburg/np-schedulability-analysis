@@ -13,7 +13,7 @@ namespace NP {
 			typedef State_space<Time, Null_IIP> Space;
 			typedef typename State_space<Time, Null_IIP>::Workload Jobs;
 
-			typedef Job_set<Time> Scheduled;
+			typedef Job_set Scheduled;
 
 			static const bool can_block = false;
 
@@ -33,7 +33,7 @@ namespace NP {
 			typedef State_space<Time, Precatious_RM_IIP> Space;
 			typedef typename State_space<Time, Precatious_RM_IIP>::Workload Jobs;
 
-			typedef Job_set<Time> Scheduled;
+			typedef Job_set Scheduled;
 
 			static const bool can_block = true;
 
@@ -99,7 +99,7 @@ namespace NP {
 			typedef State_space<Time, Critical_window_IIP> Space;
 			typedef typename State_space<Time, Critical_window_IIP>::Workload Jobs;
 
-			typedef Job_set<Time> Scheduled;
+			typedef Job_set Scheduled;
 
 			static const bool can_block = true;
 

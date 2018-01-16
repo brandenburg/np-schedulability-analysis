@@ -158,7 +158,7 @@ namespace NP {
 #endif
 			private:
 
-			typedef Job_set<Time> Scheduled;
+			typedef Job_set Scheduled;
 
 			typedef std::deque<State> States;
 			typedef typename std::deque<State>::iterator State_ref;
@@ -512,7 +512,7 @@ namespace NP {
 				states.emplace_back(std::forward<Args>(args)...);
 				State_ref s_ref = --states.end();
 
-				auto njobs = s_ref->get_scheduled_jobs().number_of_jobs();
+				auto njobs = s_ref->get_scheduled_jobs().size();
 				assert (
 					(!njobs && num_states == 0) // initial state
 				    || (njobs == current_job_count + 1) // normal State
@@ -662,7 +662,7 @@ namespace NP {
 
 					// check for a dead end
 					if (!found_at_least_one &&
-					    s.get_scheduled_jobs().number_of_jobs() != jobs.size()) {
+					    s.get_scheduled_jobs().size() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
 						aborted = true;
 					}
@@ -698,7 +698,7 @@ namespace NP {
 						    != goal.get_scheduled_jobs())
 							continue;
 
-						// cannot merge if without loss of accuracy if the
+						// cannot merge without loss of accuracy if the
 						// intervals do not overlap
 						if (!goal.finish_range()
 						     .intersects(found.finish_range()))
@@ -782,7 +782,7 @@ namespace NP {
 
 					// check for a dead end
 					if (!found_at_least_one &&
-					    s.get_scheduled_jobs().number_of_jobs() != jobs.size()) {
+					    s.get_scheduled_jobs().size() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
 						aborted = true;
 						DM(":: Didn't find any possible successors. Aborting." << std::endl);
