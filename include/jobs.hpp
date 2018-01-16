@@ -2,7 +2,10 @@
 #define JOBS_HPP
 
 #include <ostream>
+#include <vector>
+#include <algorithm> // for find
 #include <functional> // for hash
+#include <exception>
 
 #include "time.hpp"
 
@@ -18,11 +21,18 @@ namespace NP {
 		: job(j_id), task(t_id)
 		{
 		}
+
+		bool operator==(const JobID& other) const
+		{
+			return this->task == other.task && this->job == other.job;
+		}
 	};
 
 	template<class Time> class Job {
 
-	typedef Time Priority; // Make it a time value to support EDF
+	public:
+		typedef std::vector<Job<Time>> JobSet;
+		typedef Time Priority; // Make it a time value to support EDF
 
 	private:
 		Interval<Time> arrival;
@@ -113,6 +123,11 @@ namespace NP {
 			return id.task;
 		}
 
+		bool is(const JobID& search_id) const
+		{
+			return this->id == search_id;
+		}
+
 		bool higher_priority_than(const Job &other) const
 		{
 			return priority < other.priority
@@ -163,11 +178,44 @@ namespace NP {
 
 	};
 
-}
+	template<class Time>
+	bool contains_job_with_id(const typename Job<Time>::JobSet& jobs,
+	                          const JobID& id)
+	{
+		auto pos = std::find_if(jobs.begin(), jobs.end(),
+		                        [id] (const Job<Time>& j) { return j.is(id); } );
+		return pos != jobs.end();
+	}
 
-// inline std::ostream& operator<< (std::ostream& stream, const NP::Job& j)
-// {
-// }
+	class InvalidJobReference : public std::exception
+	{
+		public:
+
+		InvalidJobReference(const JobID& bad_id)
+		: ref(bad_id)
+		{}
+
+		const JobID ref;
+
+		virtual const char* what() const noexcept override
+		{
+			return "invalid job reference";
+		}
+
+	};
+
+	template<class Time>
+	const Job<Time>& lookup(const typename Job<Time>::JobSet& jobs,
+	                                 const JobID& id)
+	{
+		auto pos = std::find_if(jobs.begin(), jobs.end(),
+		                        [id] (const Job<Time>& j) { return j.is(id); } );
+		if (pos == jobs.end())
+			throw InvalidJobReference(id);
+		return *pos;
+	}
+
+}
 
 namespace std {
 	template<class T> struct hash<NP::Job<T>>

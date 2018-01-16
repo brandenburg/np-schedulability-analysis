@@ -34,7 +34,7 @@ namespace NP {
 		{
 			public:
 
-			typedef std::vector<Job<Time>> Workload;
+			typedef typename Job<Time>::JobSet Workload;
 			typedef Schedule_state<Time> State;
 
 			static State_space explore_naively(

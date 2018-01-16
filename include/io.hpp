@@ -135,12 +135,12 @@ namespace NP {
 	}
 
 	template<class Time>
-	typename Uniproc::State_space<Time>::Workload parse_file(std::istream& in)
+	typename Job<Time>::JobSet parse_file(std::istream& in)
 	{
 		// first row contains a comment, just skip it
 		next_line(in);
 
-		typename Uniproc::State_space<Time>::Workload jobs;
+		typename Job<Time>::JobSet jobs;
 
 		while (more_data(in)) {
 			jobs.push_back(parse_job<Time>(in));
