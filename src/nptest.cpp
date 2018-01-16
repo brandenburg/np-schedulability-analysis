@@ -2,13 +2,17 @@
 #include <sstream>
 #include <fstream>
 
- #include <sys/resource.h>
+#include <sys/resource.h>
 
 #include "OptionParser.h"
 
 #include "schedule_space.hpp"
+#include "global/space.hpp"
 #include "io.hpp"
 #include "clock.hpp"
+
+
+#define MAX_PROCESSORS 512
 
 // command line options
 static bool want_naive;
@@ -18,6 +22,9 @@ static bool want_cw_iip;
 
 static bool want_precedence = false;
 static std::string precedence_file;
+
+static bool want_multiprocessor = false;
+static unsigned int num_processors = 1;
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 static bool want_dot_graph;
@@ -41,8 +48,8 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 	NP::validate_prec_refs<Time>(dag, jobs);
 
 	auto space = want_naive ?
-		Space::explore_naively(jobs, timeout, jobs.size(), dag) :
-		Space::explore(jobs, timeout, jobs.size(), dag);
+		Space::explore_naively(jobs, timeout, jobs.size(), dag, num_processors)
+		: Space::explore(jobs, timeout, jobs.size(), dag, num_processors);
 
 	auto graph = std::ostringstream();
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -64,7 +71,11 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 
 static Analysis_result process_stream(std::istream &in, std::istream &dag_in)
 {
-	if (want_dense && want_prm_iip)
+	if (want_multiprocessor && want_dense)
+		return analyze<dense_t, NP::Global::State_space<dense_t>>(in, dag_in);
+	else if (want_multiprocessor && !want_dense)
+		return analyze<dtime_t, NP::Global::State_space<dtime_t>>(in, dag_in);
+	else if (want_dense && want_prm_iip)
 		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Precatious_RM_IIP<dense_t>>>(in, dag_in);
 	else if (want_dense && want_cw_iip)
 		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Critical_window_IIP<dense_t>>>(in, dag_in);
@@ -158,7 +169,7 @@ int main(int argc, char** argv)
 	      .help("choose 'discrete' or 'dense' time (default: discrete)");
 
 	parser.add_option("-l", "--time-limit").dest("timeout")
-	      .help("maximum CPU time allowed (in seconds, zero means none)")
+	      .help("maximum CPU time allowed (in seconds, zero means no limit)")
 	      .set_default("0");
 
 	parser.add_option("-n", "--naive").dest("naive").set_default("0")
@@ -172,6 +183,10 @@ int main(int argc, char** argv)
 	parser.add_option("-p", "--precedence").dest("precedence_file")
 	      .help("name of the file that contains the job set's precedence DAG")
 	      .set_default("");
+
+	parser.add_option("-m", "--multiprocessor").dest("num_processors")
+	      .help("set the number of processors of the platform")
+	      .set_default("1");
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	parser.add_option("-g", "--save-graph").dest("dot").set_default("0")
@@ -197,6 +212,13 @@ int main(int argc, char** argv)
 		std::cerr << "[!!] Warning: multiple job sets "
 		          << "with a single precedence DAG specified."
 		          << std::endl;
+	}
+
+	want_multiprocessor = options.is_set_by_user("num_processors");
+	num_processors = options.get("num_processors");
+	if (!num_processors || num_processors > MAX_PROCESSORS) {
+		std::cerr << "Error: invalid number of processors\n" << std::endl;
+		return 1;
 	}
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH

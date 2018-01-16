@@ -37,8 +37,11 @@ namespace NP {
 					const Workload& jobs,
 					double timeout = 0,
 					std::size_t num_buckets = 1000,
-					const Precedence_constraints& dag = Precedence_constraints())
+					const Precedence_constraints& dag = Precedence_constraints(),
+					unsigned int num_processors = 1)
 			{
+				assert(num_processors == 1); // this is a uniprocessor analysis
+
 				auto s = State_space(jobs, dag, timeout, num_buckets);
 				s.cpu_time.start();
 				s.explore_naively();
@@ -50,8 +53,11 @@ namespace NP {
 					const Workload& jobs,
 					double timeout = 0,
 					std::size_t num_buckets = 1000,
-					const Precedence_constraints& dag = Precedence_constraints())
+					const Precedence_constraints& dag = Precedence_constraints(),
+					unsigned int num_processors = 1)
 			{
+				assert(num_processors == 1); // this is a uniprocessor analysis
+
 				auto s = State_space(jobs, dag, timeout, num_buckets);
 				s.cpu_time.start();
 				s.explore();
