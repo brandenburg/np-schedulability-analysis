@@ -44,6 +44,22 @@ namespace NP {
 				return the_set.size() > idx && the_set[idx];
 			}
 
+			bool includes(std::vector<std::size_t> indices) const
+			{
+				for (auto i : indices)
+					if (!contains(i))
+						return false;
+				return true;
+			}
+
+			bool is_subset_of(const Index_set& other) const
+			{
+				for (unsigned int i = 0; i < the_set.size(); i++)
+					if (contains(i) && !other.contains(i))
+						return false;
+				return true;
+			}
+
 			std::size_t size() const
 			{
 				std::size_t count = 0;
@@ -51,6 +67,13 @@ namespace NP {
 					if (x)
 						count++;
 				return count;
+			}
+
+			void add(std::size_t idx)
+			{
+				if (idx >= the_set.size())
+					the_set.resize(idx + 1);
+				the_set[idx] = true;
 			}
 
 			friend std::ostream& operator<< (std::ostream& stream,

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 
+#include "index_set.hpp"
 #include "jobs.hpp"
 #include "schedule_space.hpp"
 
@@ -101,10 +102,50 @@ TEST_CASE("bool vector assumptions") {
 	CHECK(v2.size() == 100);
 	CHECK(v2.capacity() > v1.capacity());
 
+	v1.resize(150);
+	CHECK(v1.size() == 150);
+	CHECK(!v1[149]);
+
 	std::vector<bool> v3(400);
 	std::copy(v1.begin(), v1.end(), v3.begin());
 	CHECK(v3.size() == 400);
 	CHECK(v3.capacity() > v1.capacity());
 	CHECK(v3[10]);
+}
+
+
+TEST_CASE("[basic] index set")
+{
+	NP::Index_set empty;
+	NP::Index_set all;
+
+	CHECK(empty.is_subset_of(all));
+	CHECK(empty.size() == 0);
+
+	all.add(10);
+	all.add(20);
+	all.add(30);
+
+	CHECK(all.contains(10));
+	CHECK(!all.contains(29));
+	CHECK(all.size() == 3);
+
+	CHECK(!all.is_subset_of(empty));
+
+	NP::Index_set some;
+	some.add(10);
+	some.add(20);
+
+	CHECK(some.is_subset_of(all));
+	CHECK(!all.is_subset_of(some));
+	CHECK(some.size() == 2);
+
+	std::vector<std::size_t> a{10, 20};
+	std::vector<std::size_t> b{30, 20};
+	std::vector<std::size_t> c{30, 40};
+
+	CHECK(all.includes(a));
+	CHECK(all.includes(b));
+	CHECK(!all.includes(c));
 }
 
