@@ -15,6 +15,10 @@ static bool want_naive;
 static bool want_dense;
 static bool want_prm_iip;
 static bool want_cw_iip;
+
+static bool want_precedence = false;
+static std::string precedence_file;
+
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 static bool want_dot_graph;
 #endif
@@ -29,9 +33,12 @@ struct Analysis_result {
 };
 
 template<class Time, class Space>
-static Analysis_result analyze(std::istream &in)
+static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 {
 	auto jobs = NP::parse_file<Time>(in);
+	auto prec_dag = NP::parse_dag_file(dag_in);
+
+	NP::validate_prec_refs<Time>(prec_dag, jobs);
 
 	auto space = want_naive ?
 		Space::explore_naively(jobs, timeout, jobs.size()) :
@@ -55,32 +62,43 @@ static Analysis_result analyze(std::istream &in)
 	};
 }
 
-static Analysis_result process_stream(std::istream &in)
+static Analysis_result process_stream(std::istream &in, std::istream &dag_in)
 {
 	if (want_dense && want_prm_iip)
-		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Precatious_RM_IIP<dense_t>>>(in);
+		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Precatious_RM_IIP<dense_t>>>(in, dag_in);
 	else if (want_dense && want_cw_iip)
-		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Critical_window_IIP<dense_t>>>(in);
+		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Critical_window_IIP<dense_t>>>(in, dag_in);
 	else if (want_dense && !want_prm_iip)
-		return analyze<dense_t, NP::Uniproc::State_space<dense_t>>(in);
+		return analyze<dense_t, NP::Uniproc::State_space<dense_t>>(in, dag_in);
 	else if (!want_dense && want_prm_iip)
-		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Precatious_RM_IIP<dtime_t>>>(in);
+		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Precatious_RM_IIP<dtime_t>>>(in, dag_in);
 	else if (!want_dense && want_cw_iip)
-		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Critical_window_IIP<dtime_t>>>(in);
+		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Critical_window_IIP<dtime_t>>>(in, dag_in);
 	else
-		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t>>(in);
+		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t>>(in, dag_in);
 }
 
-static void process_file(const std::string& fname)
+static void process_file(const std::string& fname,
+                         const std::string& prec_dag_fname)
 {
 	try {
 		Analysis_result result;
 
+		auto empty_dag_stream = std::istringstream("\n");
+		auto dag_stream = std::ifstream();
+
+		if (want_precedence)
+			dag_stream.open(prec_dag_fname);
+
+		std::istream &dag_in = want_precedence ?
+			static_cast<std::istream&>(dag_stream) :
+			static_cast<std::istream&>(empty_dag_stream);
+
 		if (fname == "-")
-			result = process_stream(std::cin);
+			result = process_stream(std::cin, dag_in);
 		else {
 			auto in = std::ifstream(fname, std::ios::in);
-			result = process_stream(in);
+			result = process_stream(in, dag_in);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 			if (want_dot_graph) {
 				std::string dot_name = fname;
@@ -111,7 +129,18 @@ static void process_file(const std::string& fname)
 		          << ",  " << (int) result.timeout
 		          << std::endl;
 	} catch (std::ios_base::failure& ex) {
-		std::cerr << fname << ": parse error" << std::endl;
+		std::cerr << fname;
+		if (want_precedence)
+			std::cerr << " + " << prec_dag_fname;
+		std::cerr <<  ": parse error" << std::endl;
+	} catch (NP::InvalidJobReference& ex) {
+		std::cerr << prec_dag_fname << ": bad job reference: job "
+		          << ex.ref.job << " of task " << ex.ref.task
+			      << " is not part of the job set given in "
+			      << fname
+			      << std::endl;
+	} catch (std::exception& ex) {
+		std::cerr << fname << ": '" << ex.what() << "'" << std::endl;
 	}
 }
 
@@ -139,6 +168,9 @@ int main(int argc, char** argv)
 	      .choices({"none", "P-RM", "CW"}).set_default("none")
 	      .help("the IIP to use (default: none)");
 
+	parser.add_option("-p", "--precedence").dest("precedence_file")
+	      .help("name of the file that contains the job set's precedence DAG")
+	      .set_default("");
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	parser.add_option("-g", "--save-graph").dest("dot").set_default("0")
@@ -159,15 +191,22 @@ int main(int argc, char** argv)
 
 	timeout = options.get("timeout");
 
+	want_precedence = options.is_set_by_user("precedence_file");
+	if (want_precedence && parser.args().size() > 1) {
+		std::cerr << "[!!] Warning: multiple job sets "
+		          << "with a single precedence DAG specified."
+		          << std::endl;
+	}
+
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	want_dot_graph = options.get("dot");
 #endif
 
 	for (auto f : parser.args())
-		process_file(f);
+		process_file(f, options.get("precedence_file"));
 
 	if (parser.args().empty())
-		process_file("-");
+		process_file("-", options.get("precedence_file"));
 
 	return 0;
 }
