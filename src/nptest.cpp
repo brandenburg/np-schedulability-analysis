@@ -36,13 +36,13 @@ template<class Time, class Space>
 static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 {
 	auto jobs = NP::parse_file<Time>(in);
-	auto prec_dag = NP::parse_dag_file(dag_in);
+	auto dag = NP::parse_dag_file(dag_in);
 
-	NP::validate_prec_refs<Time>(prec_dag, jobs);
+	NP::validate_prec_refs<Time>(dag, jobs);
 
 	auto space = want_naive ?
-		Space::explore_naively(jobs, timeout, jobs.size()) :
-		Space::explore(jobs, timeout, jobs.size());
+		Space::explore_naively(jobs, timeout, jobs.size(), dag) :
+		Space::explore(jobs, timeout, jobs.size(), dag);
 
 	auto graph = std::ostringstream();
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH

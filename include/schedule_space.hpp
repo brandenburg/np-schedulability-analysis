@@ -14,6 +14,7 @@
 #include <cassert>
 
 #include "jobs.hpp"
+#include "precedence.hpp"
 #include "clock.hpp"
 
 // DM : debug message -- disable for now
@@ -40,9 +41,10 @@ namespace NP {
 			static State_space explore_naively(
 					const Workload& jobs,
 					double timeout = 0,
-					std::size_t num_buckets = 1000)
+					std::size_t num_buckets = 1000,
+					const Precedence_constraints& dag = Precedence_constraints())
 			{
-				auto s = State_space(jobs, timeout, num_buckets);
+				auto s = State_space(jobs, dag, timeout, num_buckets);
 				s.cpu_time.start();
 				s.explore_naively();
 				s.cpu_time.stop();
@@ -52,9 +54,10 @@ namespace NP {
 			static State_space explore(
 					const Workload& jobs,
 					double timeout = 0,
-					std::size_t num_buckets = 1000)
+					std::size_t num_buckets = 1000,
+					const Precedence_constraints& dag = Precedence_constraints())
 			{
-				auto s = State_space(jobs, timeout, num_buckets);
+				auto s = State_space(jobs, dag, timeout, num_buckets);
 				s.cpu_time.start();
 				s.explore();
 				s.cpu_time.stop();
@@ -173,6 +176,9 @@ namespace NP {
 
 			typedef std::unordered_map<const Job<Time>*, Interval<Time> > Response_times;
 
+			typedef std::vector<std::size_t> Job_precedence_set;
+
+
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 			std::deque<Edge> edges;
 #endif
@@ -187,6 +193,8 @@ namespace NP {
 			const Workload& jobs;
 
 			Jobs_lut jobs_by_win;
+
+			std::vector<Job_precedence_set> job_precedence_sets;
 
 			By_time_map jobs_by_latest_arrival;
 			By_time_map jobs_by_earliest_arrival;
@@ -206,7 +214,8 @@ namespace NP {
 			double timeout;
 
 			State_space(const Workload& jobs,
-						double max_cpu_time = 0,
+			            const Precedence_constraints &dag_edges,
+			            double max_cpu_time = 0,
 			            std::size_t num_buckets = 1000)
 			: jobs_by_win(Interval<Time>{0, max_deadline(jobs)},
 			              max_deadline(jobs) / num_buckets)
@@ -220,6 +229,7 @@ namespace NP {
 			, width(0)
 			, todo_idx(0)
 			, current_job_count(0)
+			, job_precedence_sets(jobs.size())
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -227,8 +237,12 @@ namespace NP {
 					jobs_by_deadline.insert({j.get_deadline(), &j});
 					jobs_by_win.insert(j);
 				}
+				for (auto e : dag_edges) {
+					const Job<Time>& from = lookup<Time>(jobs, e.first);
+					const Job<Time>& to   = lookup<Time>(jobs, e.second);
+					job_precedence_sets[index_of(to)].push_back(index_of(from));
+				}
 			}
-
 
 			private:
 
@@ -478,10 +492,23 @@ namespace NP {
 				return true;
 			}
 
+			// returns true if all predecessors of j have completed in state s
+			bool ready(const State &s, const Job<Time> &j)
+			{
+				const Job_precedence_set &preds =
+					job_precedence_sets[index_of(j)];
+				// check that all predecessors have completed
+				return s.get_scheduled_jobs().includes(preds);
+			}
+
 			bool is_eligible_successor(const State &s, const Job<Time> &j)
 			{
 				if (!incomplete(s, j)) {
 					DM("        * not incomplete" <<  std::endl);
+					return false;
+				}
+				if (!ready(s, j)) {
+					DM("        * not ready" <<  std::endl);
 					return false;
 				}
 				auto t_s = s.next_earliest_start_time(j);
