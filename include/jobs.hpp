@@ -10,6 +10,16 @@ namespace NP {
 
 	typedef std::size_t hash_value_t;
 
+	struct JobID {
+		unsigned long job;
+		unsigned long task;
+
+		JobID(unsigned long j_id, unsigned long t_id)
+		: job(j_id), task(t_id)
+		{
+		}
+	};
+
 	template<class Time> class Job {
 
 	typedef Time Priority; // Make it a time value to support EDF
@@ -19,19 +29,19 @@ namespace NP {
 		Interval<Time> cost;
 		Time deadline;
 		Priority priority;
-		unsigned long id, task_id;
+		JobID id;
 		hash_value_t key;
 
 		void compute_hash() {
 			auto h = std::hash<Time>{};
 			key = h(arrival.from());
-			key = (key << 1) ^ h(task_id);
+			key = (key << 1) ^ h(id.task);
 			key = (key << 1) ^ h(arrival.until());
 			key = (key << 1) ^ h(cost.from());
 			key = (key << 1) ^ h(cost.upto());
 			key = (key << 1) ^ h(deadline);
 			key = (key << 1) ^ h(priority);
-			key = (key << 1) ^ h(id);
+			key = (key << 1) ^ h(id.job);
 		}
 
 	public:
@@ -41,7 +51,7 @@ namespace NP {
 			Time dl, Priority prio,
 			unsigned long tid = 0)
 		: arrival(arr), cost(cost),
-		  deadline(dl), priority(prio), id(id), task_id(tid)
+		  deadline(dl), priority(prio), id(id, tid)
 		{
 			compute_hash();
 		}
@@ -95,12 +105,12 @@ namespace NP {
 
 		unsigned long get_id() const
 		{
-			return id;
+			return id.job;
 		}
 
 		unsigned long get_task_id() const
 		{
-			return task_id;
+			return id.task;
 		}
 
 		bool higher_priority_than(const Job &other) const
@@ -108,11 +118,11 @@ namespace NP {
 			return priority < other.priority
 			       // first tie-break by task ID
 			       || (priority == other.priority
-			           && task_id < other.task_id)
+			           && id.task < other.id.task)
 			       // second, tie-break by job ID
 			       || (priority == other.priority
-			           && task_id == other.task_id
-			           && id < other.id);
+			           && id.task == other.id.task
+			           && id.job < other.id.job);
 		}
 
 		bool priority_at_least_that_of(const Job &other) const
@@ -145,9 +155,9 @@ namespace NP {
 
 		friend std::ostream& operator<< (std::ostream& stream, const Job& j)
 		{
-			stream << "Job{" << j.id << ", " << j.arrival << ", "
+			stream << "Job{" << j.id.job << ", " << j.arrival << ", "
 			       << j.cost << ", " << j.deadline << ", " << j.priority
-			       << ", " << j.task_id << "}";
+			       << ", " << j.id.task << "}";
 			return stream;
 		}
 
