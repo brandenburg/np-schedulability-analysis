@@ -127,3 +127,30 @@ TEST_CASE("[parser] precedence file") {
 	CHECK(dag[2].second.task == 3);
 	CHECK(dag[2].second.job  == 13);
 }
+
+TEST_CASE("[parser] invalid precedence reference") {
+	auto dag_in = std::istringstream(precedence_file);
+	auto dag = NP::parse_dag_file(dag_in);
+
+	auto in = std::istringstream(four_lines);
+	auto jobs = NP::parse_file<dense_t>(in);
+
+	REQUIRE_THROWS_AS(NP::validate_prec_refs<dense_t>(dag, jobs), NP::InvalidJobReference);
+}
+
+const std::string sequential_task_prec_file =
+"Predecessor TID,	Predecessor JID,	Successor TID,	Successor JID\n"
+"            920,                 1,             920,             2\n"
+"            920,                 2,             920,             3\n";
+
+TEST_CASE("[parser] valid precedence reference") {
+	auto dag_in = std::istringstream(sequential_task_prec_file);
+	auto dag = NP::parse_dag_file(dag_in);
+
+	auto in = std::istringstream(four_lines);
+	auto jobs = NP::parse_file<dense_t>(in);
+
+	NP::validate_prec_refs<dense_t>(dag, jobs);
+	// dummy check; real check is that previous line didn't throw an exception
+	CHECK(true);
+}

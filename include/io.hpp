@@ -4,12 +4,11 @@
 #include <iostream>
 #include <utility>
 
-
 #include "interval.hpp"
 #include "time.hpp"
 #include "jobs.hpp"
+#include "precedence.hpp"
 #include "schedule_space.hpp"
-
 
 namespace NP {
 
@@ -63,8 +62,6 @@ namespace NP {
 		return JobID(jid, tid);
 	}
 
-	typedef std::pair<JobID, JobID> PrecedenceConstraint;
-
 	inline PrecedenceConstraint parse_precedence_constraint(std::istream &in)
 	{
 		std::ios_base::iostate state_before = in.exceptions();
@@ -82,8 +79,6 @@ namespace NP {
 
 		return PrecedenceConstraint(from, to);
 	}
-
-	typedef std::vector<PrecedenceConstraint> PrecedenceConstraints;
 
 	inline PrecedenceConstraints parse_dag_file(std::istream& in)
 	{
