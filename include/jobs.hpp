@@ -31,7 +31,7 @@ namespace NP {
 	template<class Time> class Job {
 
 	public:
-		typedef std::vector<Job<Time>> JobSet;
+		typedef std::vector<Job<Time>> Job_set;
 		typedef Time Priority; // Make it a time value to support EDF
 
 	private:
@@ -179,7 +179,7 @@ namespace NP {
 	};
 
 	template<class Time>
-	bool contains_job_with_id(const typename Job<Time>::JobSet& jobs,
+	bool contains_job_with_id(const typename Job<Time>::Job_set& jobs,
 	                          const JobID& id)
 	{
 		auto pos = std::find_if(jobs.begin(), jobs.end(),
@@ -205,7 +205,7 @@ namespace NP {
 	};
 
 	template<class Time>
-	const Job<Time>& lookup(const typename Job<Time>::JobSet& jobs,
+	const Job<Time>& lookup(const typename Job<Time>::Job_set& jobs,
 	                                 const JobID& id)
 	{
 		auto pos = std::find_if(jobs.begin(), jobs.end(),

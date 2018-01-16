@@ -62,7 +62,7 @@ namespace NP {
 		return JobID(jid, tid);
 	}
 
-	inline PrecedenceConstraint parse_precedence_constraint(std::istream &in)
+	inline Precedence_constraint parse_precedence_constraint(std::istream &in)
 	{
 		std::ios_base::iostate state_before = in.exceptions();
 		in.exceptions(std::istream::failbit | std::istream::badbit);
@@ -77,12 +77,12 @@ namespace NP {
 
 		in.exceptions(state_before);
 
-		return PrecedenceConstraint(from, to);
+		return Precedence_constraint(from, to);
 	}
 
-	inline PrecedenceConstraints parse_dag_file(std::istream& in)
+	inline Precedence_constraints parse_dag_file(std::istream& in)
 	{
-		PrecedenceConstraints edges;
+		Precedence_constraints edges;
 
 		// skip column headers
 		next_line(in);
@@ -130,12 +130,12 @@ namespace NP {
 	}
 
 	template<class Time>
-	typename Job<Time>::JobSet parse_file(std::istream& in)
+	typename Job<Time>::Job_set parse_file(std::istream& in)
 	{
 		// first row contains a comment, just skip it
 		next_line(in);
 
-		typename Job<Time>::JobSet jobs;
+		typename Job<Time>::Job_set jobs;
 
 		while (more_data(in)) {
 			jobs.push_back(parse_job<Time>(in));
