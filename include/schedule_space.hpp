@@ -13,17 +13,12 @@
 #include <ostream>
 #include <cassert>
 
+#include "config.h"
 #include "jobs.hpp"
 #include "precedence.hpp"
 #include "clock.hpp"
 
-// DM : debug message -- disable for now
-// #define DM(x) std::cerr << x
-#define DM(x)
-
 #include "schedule_state.hpp"
-
-// #define CONFIG_COLLECT_SCHEDULE_GRAPH
 
 namespace NP {
 
