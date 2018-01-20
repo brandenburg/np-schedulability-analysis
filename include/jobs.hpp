@@ -45,13 +45,13 @@ namespace NP {
 		void compute_hash() {
 			auto h = std::hash<Time>{};
 			key = h(arrival.from());
-			key = (key << 1) ^ h(id.task);
-			key = (key << 1) ^ h(arrival.until());
-			key = (key << 1) ^ h(cost.from());
-			key = (key << 1) ^ h(cost.upto());
-			key = (key << 1) ^ h(deadline);
-			key = (key << 1) ^ h(priority);
-			key = (key << 1) ^ h(id.job);
+			key = (key << 4) ^ h(id.task);
+			key = (key << 4) ^ h(arrival.until());
+			key = (key << 4) ^ h(cost.from());
+			key = (key << 4) ^ h(deadline);
+			key = (key << 4) ^ h(cost.upto());
+			key = (key << 4) ^ h(id.job);
+			key = (key << 4) ^ h(priority);
 		}
 
 	public:
