@@ -22,53 +22,70 @@ template<class T> class Interval {
 		}
 	}
 
-	const T& from() const {
+	const T& from() const
+	{
 		return a;
 	}
 
-	const T& starting_at() const {
+	const T& starting_at() const
+	{
 		return a;
 	}
 
-	const T& until() const {
+	const T& until() const
+	{
 		return b;
 	}
 
-	const T& upto() const {
+	const T& upto() const
+	{
 		return b;
 	}
 
-	bool contains(const Interval<T>& other) const {
+	bool contains(const Interval<T>& other) const
+	{
 		return from() <= other.from() && other.until() <= until();
 	}
 
-	bool contains(const T& point) const {
+	bool contains(const T& point) const
+	{
 		return from() <= point && point <= until();
 	}
 
-	bool disjoint(const Interval<T>& other) const {
+	bool disjoint(const Interval<T>& other) const
+	{
 		return other.until() < from() || until() < other.from();
 	}
 
-	bool intersects(const Interval<T>& other) const {
+	bool intersects(const Interval<T>& other) const
+	{
 		return not disjoint(other);
 	}
 
-	bool operator==(const Interval<T>& other) const {
+	bool operator==(const Interval<T>& other) const
+	{
 		return other.from() == from() && other.until() == until();
 	}
 
-	Interval<T> merge(const Interval<T>& other) const {
+	Interval<T> merge(const Interval<T>& other) const
+	{
 		return Interval<T>{std::min(from(), other.from()),
 		                   std::max(until(), other.until())};
 	}
 
-	void widen(const Interval<T>& other) {
+	void widen(const Interval<T>& other)
+	{
 		a = std::min(from(), other.from());
 		b = std::max(until(), other.until());
 	}
 
-	T length() const {
+	void lower_bound(T lb)
+	{
+		a = std::max(lb, a);
+	}
+
+	T length() const
+	{
 		return until() - from();
 	}
 };
