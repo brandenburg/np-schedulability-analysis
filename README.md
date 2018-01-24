@@ -87,7 +87,7 @@ To activate an *idle-time insertion policy* (IIP, see paper for details), use th
 
 ```
 $ build/nptest -i CW examples/fig1a.csv 
-examples/fig1a.csv,  1,  9,  10,  9,  0,  0.000121,  848.000000,  0
+examples/fig1a.csv,  1,  9,  10,  9,  0,  0.000121,  848.000000,  0, 1
 ```
 
 When analyzing a job set with **dense-time parameters** (i.e., time values specified as floating-point numbers), the option `-t dense` **must** be passed. 
@@ -96,7 +96,7 @@ See the builtin help (`nptest -h`) for further options.
 
 ## Output Format
 
-The output is also provided in CSV format and consists of the following columns:
+The output is provided in CSV format and consists of the following columns:
 
 1. The input file name.
 2. The schedulability result: 1 if the job is *is* schedulable, 0 if it is *not*.
@@ -106,7 +106,8 @@ The output is also provided in CSV format and consists of the following columns:
 6. The maximum “exploration front width” of the schedule graph, which is the maximum number of unprocessed states  that are queued for exploration (at any point in time). 
 7. The CPU time used in the analysis (in seconds).
 8. The peak amount of memory used (as reported by `getrusage()`), divided by 1024. Due to non-portable differences in `getrusage()`, on Linux this reports the memory usage in megabytes, whereas on macOS it reports the memory usage in kilobytes.
-
+9. A timeout indicator: 1 if the state-space exploration was aborted due to reaching the time limit (as set with the `-l` option); 0 otherwise. 
+10. The number of processors assumed during the analysis. 
 
 ## Questions, Patches, or Suggestions
 

@@ -127,6 +127,7 @@ static void process_file(const std::string& fname,
 		          << ",  " << std::fixed << result.cpu_time
 		          << ",  " << ((double) mem_used) / (1024.0)
 		          << ",  " << (int) result.timeout
+		          << ",  " << num_processors
 		          << std::endl;
 	} catch (std::ios_base::failure& ex) {
 		std::cerr << fname;
