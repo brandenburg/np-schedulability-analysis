@@ -188,11 +188,9 @@ int main(int argc, char** argv)
 	      .help("set the number of processors of the platform")
 	      .set_default("1");
 
-#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	parser.add_option("-g", "--save-graph").dest("dot").set_default("0")
 	      .action("store_const").set_const("1")
 	      .help("store the state graph in Graphviz dot format (default: off)");
-#endif
 
 	auto options = parser.parse_args(argc, argv);
 
@@ -223,6 +221,13 @@ int main(int argc, char** argv)
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	want_dot_graph = options.get("dot");
+#else
+	if (options.is_set_by_user("dot")) {
+		std::cerr << "Error: graph collection support must be enabled "
+		          << "during compilation (CONFIG_COLLECT_SCHEDULE_GRAPH "
+		          << "is not set)." << std::endl;
+		return 2;
+	}
 #endif
 
 	for (auto f : parser.args())
