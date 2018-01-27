@@ -36,12 +36,14 @@ namespace NP {
 					double timeout = 0,
 					std::size_t num_buckets = 1000,
 					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1)
+					unsigned int num_processors = 1,
+					unsigned int max_depth = 0)
 			{
 				// does currently not support precedence constraints
 				assert(dag.empty());
 
-				auto s = State_space(jobs, num_processors, timeout, num_buckets);
+				auto s = State_space(jobs, num_processors, timeout, max_depth,
+				                     num_buckets);
 				s.cpu_time.start();
 				s.explore_naively();
 				s.cpu_time.stop();
@@ -53,12 +55,14 @@ namespace NP {
 					double timeout = 0,
 					std::size_t num_buckets = 1000,
 					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1)
+					unsigned int num_processors = 1,
+					unsigned int max_depth = 0)
 			{
 				// does currently not support precedence constraints
 				assert(dag.empty());
 
-				auto s = State_space(jobs, num_processors, timeout, num_buckets);
+				auto s = State_space(jobs, num_processors, timeout, max_depth,
+				                     num_buckets);
 				s.cpu_time.start();
 				s.explore();
 				s.cpu_time.stop();
@@ -186,6 +190,8 @@ namespace NP {
 			bool aborted;
 			bool timed_out;
 
+			unsigned int max_depth;
+
 			bool be_naive;
 
 			const Workload& jobs;
@@ -212,8 +218,9 @@ namespace NP {
 			unsigned int num_cpus;
 
 			State_space(const Workload& jobs,
-						unsigned int num_cpus,
+			            unsigned int num_cpus,
 			            double max_cpu_time = 0,
+			            unsigned int max_depth = 0,
 			            std::size_t num_buckets = 1000)
 			: jobs_by_win(Interval<Time>{0, max_deadline(jobs)},
 			              max_deadline(jobs) / num_buckets)
@@ -222,6 +229,7 @@ namespace NP {
 			, timed_out(false)
 			, be_naive(false)
 			, timeout(max_cpu_time)
+			, max_depth(max_depth)
 			, num_states(0)
 			, num_edges(0)
 			, width(0)
@@ -447,6 +455,14 @@ namespace NP {
 				if (timeout && get_cpu_time() > timeout) {
 					aborted = true;
 					timed_out = true;
+				}
+			}
+
+			void check_depth_abort()
+			{
+				if (max_depth && current_job_count == max_depth
+				    && todo[todo_idx].empty()) {
+					aborted = true;
 				}
 			}
 
@@ -770,6 +786,7 @@ namespace NP {
 						uncache_current_state();
 					done_with_current_state();
 					check_cpu_timeout();
+					check_depth_abort();
 				}
 			}
 

@@ -38,7 +38,8 @@ namespace NP {
 					double timeout = 0,
 					std::size_t num_buckets = 1000,
 					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1)
+					unsigned int num_processors = 1,
+					unsigned int max_depth = 0)
 			{
 				assert(num_processors == 1); // this is a uniprocessor analysis
 
@@ -54,7 +55,8 @@ namespace NP {
 					double timeout = 0,
 					std::size_t num_buckets = 1000,
 					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1)
+					unsigned int num_processors = 1,
+					unsigned int max_depth = 0)
 			{
 				assert(num_processors == 1); // this is a uniprocessor analysis
 

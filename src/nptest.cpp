@@ -30,6 +30,7 @@ static unsigned int num_processors = 1;
 static bool want_dot_graph;
 #endif
 static double timeout;
+static unsigned int max_depth = 0;
 
 struct Analysis_result {
 	bool schedulable;
@@ -48,8 +49,8 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 	NP::validate_prec_refs<Time>(dag, jobs);
 
 	auto space = want_naive ?
-		Space::explore_naively(jobs, timeout, jobs.size(), dag, num_processors)
-		: Space::explore(jobs, timeout, jobs.size(), dag, num_processors);
+		Space::explore_naively(jobs, timeout, jobs.size(), dag, num_processors, max_depth)
+		: Space::explore(jobs, timeout, jobs.size(), dag, num_processors, max_depth);
 
 	auto graph = std::ostringstream();
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -129,9 +130,15 @@ static void process_file(const std::string& fname,
 		if (getrusage(RUSAGE_SELF, &u) == 0)
 			mem_used = u.ru_maxrss;
 
-		std::cout << fname
-		          << ",  " << (int) result.schedulable
-		          << ",  " << result.number_of_jobs
+		std::cout << fname;
+
+		if (max_depth && max_depth < result.number_of_jobs)
+			// mark result as invalid due to debug abort
+			std::cout << ",  X";
+		else
+			std::cout << ",  " << (int) result.schedulable;
+
+		std::cout << ",  " << result.number_of_jobs
 		          << ",  " << result.number_of_states
 		          << ",  " << result.number_of_edges
 		          << ",  " << result.max_width
@@ -172,6 +179,10 @@ int main(int argc, char** argv)
 	      .help("maximum CPU time allowed (in seconds, zero means no limit)")
 	      .set_default("0");
 
+	parser.add_option("-d", "--depth-limit").dest("depth")
+	      .help("abort graph exploration after reaching given depth (>= 2)")
+	      .set_default("0");
+
 	parser.add_option("-n", "--naive").dest("naive").set_default("0")
 	      .action("store_const").set_const("1")
 	      .help("use the naive exploration method (default: merging)");
@@ -204,6 +215,15 @@ int main(int argc, char** argv)
 	want_naive = options.get("naive");
 
 	timeout = options.get("timeout");
+
+	max_depth = options.get("depth");
+	if (options.is_set_by_user("depth")) {
+		if (max_depth <= 1) {
+			std::cerr << "Error: invalid depth argument\n" << std::endl;
+			return 1;
+		}
+		max_depth -= 1;
+	}
 
 	want_precedence = options.is_set_by_user("precedence_file");
 	if (want_precedence && parser.args().size() > 1) {
