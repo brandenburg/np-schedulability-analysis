@@ -32,12 +32,15 @@ static bool want_dot_graph;
 static double timeout;
 static unsigned int max_depth = 0;
 
+static bool want_rta_file;
+
 struct Analysis_result {
 	bool schedulable;
 	bool timeout;
 	unsigned long number_of_states, number_of_edges, max_width, number_of_jobs;
 	double cpu_time;
 	std::string graph;
+	std::string response_times_csv;
 };
 
 template<class Time, class Space>
@@ -58,6 +61,19 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 		graph << space;
 #endif
 
+	auto rta = std::ostringstream();
+
+	if (want_rta_file) {
+		rta << "Task ID, Job ID, BCRT, WCRT" << std::endl;
+		for (const auto& j : jobs) {
+			Interval<Time> response = space.get_finish_times(j);
+			rta << j.get_task_id() << ", "
+			    << j.get_id() << ", "
+			    << response.from() << ", "
+			    << response.until() << std::endl;
+		}
+	}
+
 	return {
 		space.is_schedulable(),
 		space.was_timed_out(),
@@ -66,7 +82,8 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 		space.max_exploration_front_width(),
 		jobs.size(),
 		space.get_cpu_time(),
-		graph.str()
+		graph.str(),
+		rta.str()
 	};
 }
 
@@ -123,6 +140,16 @@ static void process_file(const std::string& fname,
 				}
 			}
 #endif
+			if (want_rta_file) {
+				std::string rta_name = fname;
+				auto p = rta_name.find(".csv");
+				if (p != std::string::npos) {
+					rta_name.replace(p, std::string::npos, ".rta.csv");
+					auto out  = std::ofstream(rta_name,  std::ios::out);
+					out << result.response_times_csv;
+					out.close();
+				}
+			}
 		}
 
 		struct rusage u;
@@ -203,6 +230,10 @@ int main(int argc, char** argv)
 	      .action("store_const").set_const("1")
 	      .help("store the state graph in Graphviz dot format (default: off)");
 
+	parser.add_option("-r", "--save-response-times").dest("rta").set_default("0")
+	      .action("store_const").set_const("1")
+	      .help("store the best- and worst-case response times (default: off)");
+
 	auto options = parser.parse_args(argc, argv);
 
 	const std::string& time_model = options.get("time_model");
@@ -238,6 +269,8 @@ int main(int argc, char** argv)
 		std::cerr << "Error: invalid number of processors\n" << std::endl;
 		return 1;
 	}
+
+	want_rta_file = options.get("rta");
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	want_dot_graph = options.get("dot");
