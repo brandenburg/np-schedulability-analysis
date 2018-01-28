@@ -637,7 +637,7 @@ namespace NP {
 				while (not_done() && !aborted) {
 					const State& s = next_state();
 
-					DM("\nLooking at: S" << (todo.front() - states.begin() + 1) << " " << s << std::endl);
+					DM("\nLooking at: S" << (todo[todo_idx].front() - states.begin() + 1) << " " << s << std::endl);
 
 					// Identify relevant interval for next job
 					// relevant job buckets
@@ -750,7 +750,7 @@ namespace NP {
 				while (not_done() && !aborted) {
 					const State& s = next_state();
 
-					DM("\nLooking at: S" << (todo.front() - states.begin()) << " " << s << std::endl);
+					DM("\nLooking at: S" << (todo[todo_idx].front() - states.begin()) << " " << s << std::endl);
 
 					// Identify relevant interval for next job
 					// relevant job buckets
