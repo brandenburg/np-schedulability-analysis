@@ -345,12 +345,6 @@ namespace NP {
 				new_state(num_cpus);
 			}
 
-			void update_stats(State_ref s)
-			{
-				num_states++;
-				width = std::max(width, states().size());
-			}
-
 			States& states()
 			{
 				return states_storage.back();
@@ -398,8 +392,7 @@ namespace NP {
 			State& new_state(Args&&... args)
 			{
 				auto s_ref = make_state(std::forward<Args>(args)...);
-
-				update_stats(s_ref);
+				num_states++;
 
 				return *s_ref;
 			}
@@ -419,7 +412,7 @@ namespace NP {
 				} else {
 					// nope, need to explore this state
 					cache_state(s_ref);
-					update_stats(s_ref);
+					num_states++;
 				}
 				return *s_ref;
 			}
@@ -746,6 +739,9 @@ namespace NP {
 					States& exploration_front = states();
 					// allocate states space for next depth
 					states_storage.emplace_back();
+
+					// keep track of exploration front width
+					width = std::max(width, exploration_front.size());
 
 					// explore all states at the current depth
 					for (const State& s : exploration_front) {
