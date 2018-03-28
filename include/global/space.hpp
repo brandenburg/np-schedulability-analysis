@@ -325,19 +325,6 @@ namespace NP {
 				states_by_key.insert(std::make_pair(s->get_key(), s));
 			}
 
-			void uncache_state(State_ref s)
-			{
-				auto matches = states_by_key.equal_range(s->get_key());
-				bool deleted = false;
-				for (auto it = matches.first; it != matches.second; it++)
-					if (it->second == s) {
-						states_by_key.erase(it);
-						deleted = true;
-						break;
-					}
-				assert(deleted);
-			}
-
 			void make_initial_state()
 			{
 				// construct initial state
@@ -752,13 +739,8 @@ namespace NP {
 					}
 
 					// clean up the state cache if necessary
-					if (!be_naive) {
-						for (State_ref s_ref = exploration_front.begin();
-							 s_ref != exploration_front.end();
-							 s_ref++) {
-							uncache_state(s_ref);
-						}
-					}
+					if (!be_naive)
+						states_by_key.clear();
 
 					current_job_count++;
 					check_depth_abort();
