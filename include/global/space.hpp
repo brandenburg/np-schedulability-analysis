@@ -719,6 +719,61 @@ namespace NP {
 				return found_one;
 			}
 
+			void explore_state(const State& s)
+			{
+				DM("\nLooking at: S" << index_of(todo[todo_idx].front())
+				   << " " << s << std::endl);
+
+				auto rjs = s.get_running_jobs();
+
+				// earliest time the next job could get scheduled
+				auto t_earliest = rjs.possible_core_availability_time();
+
+				// earliest certain core availability
+				auto t_core = rjs.certain_core_availability_time();
+
+				// latest time some unfinished job is certainly released
+				auto t_any_released = next_certain_job_release(s, t_earliest);
+
+				// time by which some job is certainly scheduled next
+				auto t_horizon = std::max(t_core, t_any_released);
+
+				bool found_one = false;
+
+				// (1) first check jobs that may be already pending
+				for (const Job<Time>& j : jobs_by_win.lookup(t_earliest)) {
+					DM("    -?? " << j << std::endl);
+					if (incomplete(s, j)
+						&& j.earliest_arrival() <= t_earliest) {
+						found_one |= try_to_schedule(s, j, t_earliest, t_horizon);
+					}
+				}
+
+				// (2) check jobs that are released only later in the interval
+				for (auto it = jobs_by_earliest_arrival
+							   .upper_bound(t_earliest);
+					 it != jobs_by_earliest_arrival.end();
+					 it++) {
+					const Job<Time>& j = *it->second;
+					// stop looking once we've left the range of interest
+					DM("    -?? " << j << std::endl);
+					if (j.earliest_arrival() > t_horizon)
+						break;
+					// Since this job is released in the future, it better
+					// be incomplete...
+					assert(incomplete(s, j));
+
+					found_one |= try_to_schedule(s, j, t_earliest, t_horizon);
+				}
+
+				// check for a dead end
+				if (!found_one
+					&& s.get_scheduled_jobs().size() != jobs.size()) {
+					// out of options and we didn't schedule all jobs
+					aborted = true;
+				}
+			}
+
 			void explore()
 			{
 				make_initial_state();
@@ -730,57 +785,7 @@ namespace NP {
 				while (not_done() && !aborted) {
 					const State& s = next_state();
 
-					DM("\nLooking at: S" << index_of(todo[todo_idx].front())
-					   << " " << s << std::endl);
-
-					auto rjs = s.get_running_jobs();
-
-					// earliest time the next job could get scheduled
-					auto t_earliest = rjs.possible_core_availability_time();
-
-					// earliest certain core availability
-					auto t_core = rjs.certain_core_availability_time();
-
-					// latest time some unfinished job is certainly released
-					auto t_any_released = next_certain_job_release(s, t_earliest);
-
-					// time by which some job is certainly scheduled next
-					auto t_horizon = std::max(t_core, t_any_released);
-
-					bool found_one = false;
-
-					// (1) first check jobs that may be already pending
-					for (const Job<Time>& j : jobs_by_win.lookup(t_earliest)) {
-						DM("    -?? " << j << std::endl);
-						if (incomplete(s, j)
-						    && j.earliest_arrival() <= t_earliest) {
-							found_one |= try_to_schedule(s, j, t_earliest, t_horizon);
-						}
-					}
-
-					// (2) check jobs that are released only later in the interval
-					for (auto it = jobs_by_earliest_arrival
-					               .upper_bound(t_earliest);
-					     it != jobs_by_earliest_arrival.end();
-					     it++) {
-						const Job<Time>& j = *it->second;
-						// stop looking once we've left the range of interest
-						DM("    -?? " << j << std::endl);
-						if (j.earliest_arrival() > t_horizon)
-							break;
-						// Since this job is released in the future, it better
-						// be incomplete...
-						assert(incomplete(s, j));
-
-						found_one |= try_to_schedule(s, j, t_earliest, t_horizon);
-					}
-
-					// check for a dead end
-					if (!found_one
-					    && s.get_scheduled_jobs().size() != jobs.size()) {
-						// out of options and we didn't schedule all jobs
-						aborted = true;
-					}
+					explore_state(s);
 
 					if (!be_naive)
 						uncache_current_state();
