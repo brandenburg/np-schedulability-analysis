@@ -8,7 +8,6 @@
 #include "time.hpp"
 #include "jobs.hpp"
 #include "precedence.hpp"
-#include "schedule_space.hpp"
 
 namespace NP {
 

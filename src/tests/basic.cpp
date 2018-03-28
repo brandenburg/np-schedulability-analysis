@@ -6,7 +6,7 @@
 
 #include "index_set.hpp"
 #include "jobs.hpp"
-#include "schedule_space.hpp"
+#include "uni/space.hpp"
 
 using namespace NP;
 

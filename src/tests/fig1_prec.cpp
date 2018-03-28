@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include "io.hpp"
-#include "schedule_space.hpp"
+#include "uni/space.hpp"
 
 using namespace NP;
 

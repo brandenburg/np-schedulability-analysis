@@ -3,7 +3,7 @@
 #include <iostream>
 
 
-#include "schedule_space.hpp"
+#include "uni/space.hpp"
 
 using namespace NP;
 

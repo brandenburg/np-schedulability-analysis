@@ -18,7 +18,7 @@
 #include "precedence.hpp"
 #include "clock.hpp"
 
-#include "schedule_state.hpp"
+#include "uni/state.hpp"
 
 namespace NP {
 
@@ -874,7 +874,7 @@ namespace NP {
 	}
 }
 
-#include "iip.hpp"
+#include "uni/iip.hpp"
 
 namespace std
 {

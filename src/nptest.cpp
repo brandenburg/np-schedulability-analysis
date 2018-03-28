@@ -6,7 +6,7 @@
 
 #include "OptionParser.h"
 
-#include "schedule_space.hpp"
+#include "uni/space.hpp"
 #include "global/space.hpp"
 #include "io.hpp"
 #include "clock.hpp"
