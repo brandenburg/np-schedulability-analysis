@@ -19,165 +19,48 @@ const std::string fig1a_jobs_file =
 "3, 9,  0,  0, 3, 13, 60, 60\n";
 
 
-TEST_CASE("[global] running job") {
-	auto rj = NP::Global::Running_job<dtime_t>();
+TEST_CASE("[global-prec] basic state evolution (RTSS18-Fig-3)") {
+	NP::Global::Schedule_state<dtime_t> init(2);
 
-	CHECK(rj.is_idle());
+	CHECK(init.core_availability().min() == 0);
+	CHECK(init.core_availability().max() == 0);
 
-	auto in = std::istringstream(fig1a_jobs_file);
-	auto jobs = NP::parse_file<dtime_t>(in);
+	NP::Global::Schedule_state<dtime_t> v1{init, 1, {}, {0, 0}, {5, 15}, 0};
 
-	rj.next_job(jobs[0], 0);
-	CHECK_FALSE(rj.is_idle());
-	CHECK(rj.earliest_finish_time() == 1);
-	CHECK(rj.latest_finish_time() == 2);
+	CHECK(v1.core_availability().min() == 0);
+	CHECK(v1.core_availability().max() == 0);
 
-	CHECK(rj.earliest_start_time(jobs[6]) ==  1);
-	CHECK(rj.earliest_start_time(jobs[1]) == 10);
+	NP::Global::Schedule_state<dtime_t> vp{v1, 2, {}, {0, 0}, {12, 30}, 0};
 
-	rj.next_job(jobs[6], 2);
-	CHECK_FALSE(rj.is_idle());
-	CHECK(rj.earliest_finish_time() == 8);
-	CHECK(rj.latest_finish_time() == 10);
+	CHECK(vp.core_availability().min() ==  5);
+	CHECK(vp.core_availability().max() == 15);
 
-	CHECK(rj.earliest_start_time(jobs[8]) ==  8);
+	CHECK(!vp.can_merge_with(init));
+	CHECK(!vp.can_merge_with(v1));
 
-	rj.next_job(jobs[8], 15);
-	CHECK(!rj.is_idle());
-	CHECK(rj.earliest_finish_time() == 8  + 3);
-	CHECK(rj.latest_finish_time() == 15 + 13);
+	NP::Global::Schedule_state<dtime_t> v2{init, 2, {}, {0, 0}, {10, 25}, 0};
 
-	// make a copy
-	auto rj2 = rj;
+	CHECK(v1.core_availability().min() == 0);
+	CHECK(v1.core_availability().max() == 0);
 
-	rj.become_idle();
-	CHECK(rj.is_idle());
-	CHECK_FALSE(rj2.is_idle());
+	CHECK(!v2.can_merge_with(v1));
+	CHECK(!v2.try_to_merge(v1));
 
-	auto rj3 = rj2;
-	auto rj4 = rj2;
+	NP::Global::Schedule_state<dtime_t> vq{v2, 1, {}, {0, 0}, {8, 20}, 0};
 
-	rj2.fast_forward(30, 35);
-	CHECK(rj2.is_idle());
-	CHECK(rj2.earliest_finish_time() == 30);
-	CHECK(rj2.latest_finish_time() == 30);
+	CHECK(vq.core_availability().min() ==  8);
+	CHECK(vq.core_availability().max() == 20);
 
-	rj3.fast_forward(25, 27);
-	CHECK_FALSE(rj3.is_idle());
-	CHECK(rj3.earliest_finish_time() == 25);
-	CHECK(rj3.latest_finish_time() == 28);
+	CHECK(vq.can_merge_with(vp));
+	CHECK(vp.can_merge_with(vq));
 
-	rj4.fast_forward(25, 28);
-	CHECK(rj4.is_idle());
-	CHECK(rj4.earliest_finish_time() == 25);
-	CHECK(rj4.latest_finish_time() == 25);
-}
+	CHECK(vp.try_to_merge(vq));
 
-TEST_CASE("[global] Running_jobs") {
-	auto rjs = NP::Global::Running_jobs<dtime_t>(2);
+	CHECK(vq.core_availability().min() ==  8);
+	CHECK(vq.core_availability().max() == 20);
 
-	CHECK(rjs.size() == 2);
-	CHECK(rjs.idle_core_exists());
-
-	auto in = std::istringstream(fig1a_jobs_file);
-	auto jobs = NP::parse_file<dtime_t>(in);
-
-	rjs[0].next_job(jobs[0], 0);
-
-	CHECK(rjs.idle_core_exists());
-
-	rjs[1].next_job(jobs[6], 0);
-
-	CHECK_FALSE(rjs.idle_core_exists());
-
-	CHECK(rjs.possible_core_availability_time() == 1);
-	CHECK(rjs.certain_core_availability_time() == 2);
-
-	CHECK(rjs[0].earliest_finish_time() == 1);
-	CHECK(rjs[0].latest_finish_time() == 2);
-	CHECK(rjs[1].earliest_finish_time() == 7);
-	CHECK(rjs[1].latest_finish_time() == 8);
-
-	rjs.replace(0, jobs[8], 2);
-
-	CHECK_FALSE(rjs.idle_core_exists());
-
-	CHECK(rjs[0].earliest_finish_time() == 4);
-	CHECK(rjs[0].latest_finish_time() == 15);
-	CHECK(rjs[1].earliest_finish_time() == 7);
-	CHECK(rjs[1].latest_finish_time() == 8);
-
-	CHECK(rjs.possible_core_availability_time() == 1 + 3);
-	CHECK(rjs.certain_core_availability_time()  == 8);
-
-	auto copy = NP::Global::Running_jobs<dtime_t>(rjs);
-
-	rjs.replace(1, jobs[1], 10);
-
-	CHECK_FALSE(rjs.idle_core_exists());
-
-	CHECK(rjs[0].earliest_finish_time() == 10);
-	CHECK(rjs[0].latest_finish_time() == 15);
-	CHECK(rjs[1].earliest_finish_time() == 11);
-	CHECK(rjs[1].latest_finish_time() == 12);
-
-	CHECK(rjs.possible_core_availability_time() == 10);
-	CHECK(rjs.certain_core_availability_time()  == 12);
-
-
-	copy.replace(0, jobs[1], 10);
-
-	CHECK(copy.idle_core_exists());
-
-	CHECK(copy[0].earliest_finish_time() == 11);
-	CHECK(copy[0].latest_finish_time() == 12);
-	CHECK(copy[1].earliest_finish_time() == 10);
-	CHECK(copy[1].latest_finish_time() == 10);
-
-	CHECK(copy.possible_core_availability_time() == 10);
-	CHECK(copy.certain_core_availability_time()  == 10);
-
-	copy.replace(0, jobs[2], 20);
-
-	CHECK(copy.idle_core_exists());
-
-	CHECK(copy[0].earliest_finish_time() == 21);
-	CHECK(copy[0].latest_finish_time() == 22);
-	CHECK(copy[1].earliest_finish_time() == 20);
-	CHECK(copy[1].latest_finish_time() == 20);
-
-	CHECK(copy.possible_core_availability_time() == 20);
-	CHECK(copy.certain_core_availability_time()  == 20);
-
-	rjs.replace(1, jobs[2], 20);
-
-	CHECK(rjs.idle_core_exists());
-
-	CHECK(rjs[0].earliest_finish_time() == 20);
-	CHECK(rjs[0].latest_finish_time() == 20);
-	CHECK(rjs[1].earliest_finish_time() == 21);
-	CHECK(rjs[1].latest_finish_time() == 22);
-
-	CHECK(rjs.possible_core_availability_time() == 20);
-	CHECK(rjs.certain_core_availability_time()  == 20);
-
-	rjs.fast_forward(50, 60);
-	copy.fast_forward(50, 60);
-
-	CHECK(rjs.idle_core_exists());
-	CHECK(copy.idle_core_exists());
-
-	CHECK(rjs[0].earliest_finish_time() == 50);
-	CHECK(rjs[0].latest_finish_time() == 50);
-	CHECK(rjs[1].earliest_finish_time() == 50);
-	CHECK(rjs[1].latest_finish_time() == 50);
-
-	CHECK(copy[0].earliest_finish_time() == 50);
-	CHECK(copy[0].latest_finish_time() == 50);
-	CHECK(copy[1].earliest_finish_time() == 50);
-	CHECK(copy[1].latest_finish_time() == 50);
-
-	std::vector<int> matching;
+	CHECK(vp.core_availability().min() ==  5);
+	CHECK(vp.core_availability().max() == 20);
 }
 
 TEST_CASE("[global] RTSS17-Fig-1a") {

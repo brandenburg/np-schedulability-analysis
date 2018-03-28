@@ -5,6 +5,7 @@
 
 #include <set>
 
+#include "util.hpp"
 #include "index_set.hpp"
 #include "jobs.hpp"
 #include "cache.hpp"
@@ -13,232 +14,8 @@ namespace NP {
 
 	namespace Global {
 
-		typedef Index_set Job_set;
-
-		template<class Time> class Running_job
-		{
-			public:
-
-			Running_job()
-			: job(nullptr)
-			, finish_time(0, 0)
-			{
-			}
-
-			Running_job(const Running_job &other)
-			: job(other.job)
-			, finish_time(other.finish_time)
-			{
-			}
-
-			bool is_idle() const
-			{
-				return job == nullptr;
-			}
-
-			void become_idle()
-			{
-				job = nullptr;
-			}
-
-			const Job<Time>& get_job() const
-			{
-				return *job;
-			}
-
-			const Job<Time>* get_job_ptr() const
-			{
-				return job;
-			}
-
-			Time earliest_finish_time() const
-			{
-				return finish_time.from();
-			}
-
-			Time latest_finish_time() const
-			{
-				return finish_time.until();
-			}
-
-			const Interval<Time>& finish_range() const
-			{
-				return finish_time;
-			}
-
-			Interval<Time>& finish_range()
-			{
-				return finish_time;
-			}
-
-			Time earliest_start_time(const Job<Time>& job) const
-			{
-				return std::max(job.earliest_arrival(),
-				                earliest_finish_time());
-			}
-
-			Time next_job(const Job<Time> &new_job, const Time latest_start)
-			{
-				auto earliest_start = std::max(
-					earliest_finish_time(), new_job.earliest_arrival());
-
-				finish_time = Interval<Time>(
-					earliest_start + new_job.least_cost(),
-					latest_start + new_job.maximal_cost());
-				job = &new_job;
-
-				return earliest_start;
-			}
-
-			void update_after_expansion(const Time horizon)
-			{
-				if (is_idle() || latest_finish_time() <= horizon) {
-					become_idle();
-					finish_time = Interval<Time>(horizon, horizon);
-				} else
-					finish_time.lower_bound(horizon);
-			}
-
-			void fast_forward(const Time t_min, const Time t_max)
-			{
-				if (latest_finish_time() <= t_min) {
-					become_idle();
-					finish_time = Interval<Time>(t_min, t_min);
-				} else {
-					finish_time.lower_bound(t_min);
-				}
-			}
-
-			// sort by non-decreasing EFT
-			bool operator<(const Running_job<Time>& other) const
-			{
-				return earliest_finish_time() < other.earliest_finish_time();
-			}
-
-			friend std::ostream& operator<< (std::ostream& stream,
-			                                 const Running_job<Time>& rj)
-			{
-				stream << "(" << (rj.is_idle() ? "idle" : "busy") << ", "
-				       << rj.earliest_finish_time() << ", "
-				       << rj.latest_finish_time() << ")";
-				return stream;
-			}
-
-			private:
-				Interval<Time> finish_time;
-				const Job<Time>* job;
-		};
-
-
-		template<class Time> class Running_jobs
-		: public std::vector<Running_job<Time>>
-		{
-			public:
-
-			// construct an empty (= initial) configuration
-			Running_jobs(std::size_t num_cpus)
-			: std::vector<Running_job<Time>>(num_cpus)
-			{
-			}
-
-			// create a new configuration by merging two existing configurations
-			Running_jobs(const Running_jobs<Time>& rjs1,
-			             const Running_jobs<Time>& rjs2)
-			: std::vector<Running_job<Time>>(rjs1)
-			{
-				auto it = this->begin();
-				auto jt = rjs2.begin();
-				for (;it != this->end() && jt != rjs2.end(); it++, jt++) {
-					it->finish_range().widen(jt->finish_range());
-				}
-			}
-
-			Time certain_core_availability_time() const
-			{
-				Time when = Time_model::constants<Time>::infinity();
-
-				for (const auto& rj : *this)
-					when = std::min(when, rj.latest_finish_time());
-
-				return when;
-			}
-
-			Time possible_core_availability_time() const
-			{
-				Time when = Time_model::constants<Time>::infinity();
-
-				for (const auto& rj : *this)
-					when = std::min(when, rj.earliest_finish_time());
-
-				return when;
-			}
-
-			bool idle_core_exists() const
-			{
-				for (const auto& rj : *this)
-					if (rj.is_idle())
-						return true;
-				return false;
-			}
-
-			const Running_job<Time>& by_job(const Job<Time>& j) const
-			{
-				for (const auto& rj : *this)
-					if (rj.get_job_ptr() == &j)
-						return rj;
-				abort();
-			}
-
-			void replace(
-				std::size_t i,
-				const Job<Time>& j,
-				Time latest_start_time)
-			{
-				Running_job<Time> &rj = this->at(i);
-
-				auto est = rj.next_job(j, latest_start_time);
-				for (auto& rj : *this) {
-					rj.update_after_expansion(est);
-				}
-			}
-
-			void fast_forward(const Time t_min, const Time t_max)
-			{
-				for (auto& rj : *this)
-					rj.fast_forward(t_min, t_max);
-			}
-
-			void ensure_sorted_by_eft()
-			{
-				std::sort(this->begin(), this->end());
-			}
-
-			bool intervals_compatible(const Running_jobs<Time> &other) const
-			{
-				// assumes both are sorted
-				for (auto it = this->begin(), jt = other.begin();
-				     it != this->end() && jt != other.end();
-				     it++, jt++) {
-					// check for idle / non-idle mismatch
-					if (it->is_idle() ^ jt->is_idle())
-						return false;
-					if (std::max(it->earliest_finish_time(),
-					             jt->earliest_finish_time()) >
-					    std::min(it->latest_finish_time(),
-					             jt->latest_finish_time()))
-						return false;
-				}
-				return true;
-			}
-
-			unsigned int count_intervals_including(const Time t) const
-			{
-				unsigned int count = 0;
-				for (const auto& rj : *this)
-					count += rj.finish_range().contains(t);
-				return count;
-			}
-		};
+		typedef std::size_t Job_index;
+		typedef std::vector<Job_index> Job_precedence_set;
 
 		template<class Time> class Schedule_state
 		{
@@ -247,24 +24,85 @@ namespace NP {
 			// initial state -- nothing yet has finished, nothing is running
 			Schedule_state(unsigned int num_processors)
 			: scheduled_jobs()
-			, running_jobs(num_processors)
+			, num_jobs_scheduled(0)
+			, core_avail{num_processors, Interval<Time>(Time(0), Time(0))}
 			, lookup_key{0x9a9a9a9a9a9a9a9aUL}
 			{
+				assert(core_avail.size() > 0);
 			}
 
 			// transition: new state by scheduling a job in an existing state,
 			//             by replacing a given running job.
 			Schedule_state(
 				const Schedule_state& from,
-				const Job<Time>& j,
-				std::size_t idx,
-				std::size_t rj_to_replace,
-				Time latest_start_time)
-			: running_jobs(from.running_jobs)
-			, scheduled_jobs{from.scheduled_jobs, idx}
-			, lookup_key{from.lookup_key ^ j.get_key()}
+				Job_index j,
+				const Job_precedence_set& predecessors,
+				Interval<Time> start_times,
+				Interval<Time> finish_times,
+				hash_value_t key)
+			: num_jobs_scheduled(from.num_jobs_scheduled + 1)
+			, scheduled_jobs{from.scheduled_jobs, j}
+			, lookup_key{from.lookup_key ^ key}
 			{
-				running_jobs.replace(rj_to_replace, j, latest_start_time);
+				auto est = start_times.min();
+				auto lst = start_times.max();
+				auto eft = finish_times.min();
+				auto lft = finish_times.max();
+
+				DM("est: " << est << std::endl
+				<< "lst: " << lst << std::endl
+				<< "eft: " << eft << std::endl
+				<< "lft: " << lft << std::endl);
+
+				std::vector<Time> ca, pa;
+
+				pa.push_back(eft);
+				ca.push_back(lft);
+
+				// skip first element in from.core_avail
+				for (int i = 1; i < from.core_avail.size(); i++) {
+					pa.push_back(std::max(est, from.core_avail[i].min()));
+					ca.push_back(std::max(est, from.core_avail[i].max()));
+				}
+
+				// update scheduled jobs
+				// keep it sorted to make it easier to merge
+				bool added_j = false;
+				for (const auto& rj : from.certain_jobs) {
+					auto x = rj.first;
+					auto x_eft = rj.second.min();
+					auto x_lft = rj.second.max();
+					if (contains(predecessors, x)) {
+						if (lst < x_lft) {
+							auto pos = std::find(ca.begin(), ca.end(), x_lft);
+							if (pos != ca.end())
+								*pos = lst;
+						}
+					} else if (lst <= x_eft) {
+						if (!added_j && rj.first > j) {
+							// right place to add j
+							certain_jobs.emplace_back(j, finish_times);
+							added_j = true;
+						}
+						certain_jobs.emplace_back(rj);
+					}
+				}
+				// if we didn't add it yet, add it at the back
+				if (!added_j)
+					certain_jobs.emplace_back(j, finish_times);
+
+
+				// sort in non-decreasing order
+				std::sort(pa.begin(), pa.end());
+				std::sort(ca.begin(), ca.end());
+
+				for (int i = 0; i < from.core_avail.size(); i++) {
+					DM(i << " -> " << pa[i] << ":" << ca[i] << std::endl);
+					core_avail.emplace_back(pa[i], ca[i]);
+				}
+
+				assert(core_avail.size() > 0);
+				DM("*** new state: constructed " << *this << std::endl);
 			}
 
 			hash_value_t get_key() const
@@ -272,44 +110,151 @@ namespace NP {
 				return lookup_key;
 			}
 
-			const Running_jobs<Time>& get_running_jobs() const
+			bool same_jobs_scheduled(const Schedule_state &other) const
 			{
-				return running_jobs;
+				return scheduled_jobs == other.scheduled_jobs;
 			}
 
-			Running_jobs<Time>& get_running_jobs()
+			bool can_merge_with(const Schedule_state<Time>& other) const
 			{
-				return running_jobs;
+				assert(core_avail.size() == other.core_avail.size());
+
+				if (get_key() != other.get_key())
+					return false;
+				if (!same_jobs_scheduled(other))
+					return false;
+				for (int i = 0; i < core_avail.size(); i++)
+					if (!core_avail[i].intersects(other.core_avail[i]))
+						return false;
+				return true;
 			}
 
-			const Job_set& get_scheduled_jobs() const
+			bool try_to_merge(const Schedule_state<Time>& other)
 			{
-				return scheduled_jobs;
+				if (!can_merge_with(other))
+					return false;
+
+				for (int i = 0; i < core_avail.size(); i++)
+					core_avail[i] |= other.core_avail[i];
+
+				// vector to collect joint certain jobs
+				std::vector<std::pair<Job_index, Interval<Time>>> new_cj;
+
+				// walk both sorted job lists to see if we find matches
+				auto it = certain_jobs.begin();
+				auto jt = other.certain_jobs.begin();
+				while (it != certain_jobs.end() &&
+				       jt != other.certain_jobs.end()) {
+					if (it->first == jt->first) {
+						// same job
+						new_cj.emplace_back(it->first, it->second | jt->second);
+						it++;
+						jt++;
+					} else if (it->first < jt->first)
+						it++;
+					else
+						jt++;
+				}
+				// move new certain jobs into the state
+				certain_jobs.swap(new_cj);
+
+				DM("+++ merged " << other << " into " << *this << std::endl);
+
+				return true;
+			}
+
+			const unsigned int number_of_scheduled_jobs() const
+			{
+				return num_jobs_scheduled;
+			}
+
+			Interval<Time> core_availability() const
+			{
+				assert(core_avail.size() > 0);
+				return core_avail[0];
+			}
+
+			bool get_finish_times(Job_index j, Interval<Time> &ftimes) const
+			{
+				for (const auto& rj : certain_jobs) {
+					// check index
+					if (j == rj.first) {
+						ftimes = rj.second;
+						return true;
+					}
+					// Certain_jobs is sorted in order of increasing job index.
+					// If we see something larger than 'j' we are not going
+					// to find it. For large processor counts, it might make
+					// sense to do a binary search instead.
+					if (j < rj.first)
+						return false;
+				}
+				return false;
+			}
+
+			const bool job_incomplete(Job_index j) const
+			{
+				return !scheduled_jobs.contains(j);
+			}
+
+			const bool job_ready(const Job_precedence_set& predecessors) const
+			{
+				for (auto j : predecessors)
+					if (!scheduled_jobs.contains(j))
+						return false;
+				return true;
 			}
 
 			friend std::ostream& operator<< (std::ostream& stream,
 			                                 const Schedule_state<Time>& s)
 			{
-				stream << "Global::State([";
-				for (const auto& rj : s.get_running_jobs())
-					stream << rj;
-				stream << "], " << s.get_scheduled_jobs() << ")";
+				stream << "Global::State(";
+				for (const auto& a : s.core_avail)
+					stream << "[" << a.from() << ", " << a.until() << "] ";
+				stream << "(";
+				for (const auto& rj : s.certain_jobs)
+					stream << rj.first << "";
+				stream << ") " << s.scheduled_jobs << ")";
+				stream << " @ " << &s;
 				return stream;
+			}
+
+			void print_vertex_label(std::ostream& out,
+				const typename Job<Time>::Job_set& jobs) const
+			{
+				for (const auto& a : core_avail)
+					out << "[" << a.from() << ", " << a.until() << "] ";
+				out << "\\n";
+				bool first = true;
+				out << "{";
+				for (const auto& rj : certain_jobs) {
+					if (!first)
+						out << ", ";
+					out << "T" << jobs[rj.first].get_task_id()
+					    << "J" << jobs[rj.first].get_id() << ":"
+					    << rj.second.min() << "-" << rj.second.max();
+					first = false;
+				}
+				out << "}";
 			}
 
 			private:
 
+			const unsigned int num_jobs_scheduled;
+
 			// set of jobs that have been dispatched (may still be running)
-			const Job_set scheduled_jobs;
-			// set of jobs (possibly) running in this state
-			Running_jobs<Time> running_jobs;
+			const Index_set scheduled_jobs;
+
+			// imprecise set of certainly running jobs
+			std::vector<std::pair<Job_index, Interval<Time>>> certain_jobs;
+
+			// system availability intervals
+			std::vector<Interval<Time>> core_avail;
 
 			const hash_value_t lookup_key;
 
 			// no accidental copies
 			Schedule_state(const Schedule_state& origin)  = delete;
-
-
 		};
 
 	}
