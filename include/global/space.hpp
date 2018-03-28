@@ -353,11 +353,29 @@ namespace NP {
 				width = std::max(width, (unsigned long) todo[idx].size() - 1);
 			}
 
+
+			template <typename... Args>
+			State_ref alloc_state(Args&&... args)
+			{
+				states.emplace_back(std::forward<Args>(args)...);
+				return --states.end();
+			}
+
+			void dealloc_state(State_ref s)
+			{
+				assert(--states.end() == s);
+				states.pop_back();
+			}
+
+			std::size_t index_of(const State_ref s_ref)
+			{
+				return s_ref - states.begin();
+			}
+
 			template <typename... Args>
 			State_ref make_state(Args&&... args)
 			{
-				states.emplace_back(std::forward<Args>(args)...);
-				State_ref s_ref = --states.end();
+				State_ref s_ref = alloc_state(std::forward<Args>(args)...);
 
 				// make sure we didn't screw up...
 				auto njobs = s_ref->get_scheduled_jobs().size();
@@ -396,15 +414,15 @@ namespace NP {
 			template <typename... Args>
 			State& new_or_merged_state(Args&&... args)
 			{
-				auto s_ref = make_state(std::forward<Args>(args)...);
+				State_ref s_ref = make_state(std::forward<Args>(args)...);
+				State_ref tmp = s_ref;
 
 				// try to merge the new state into an existing state
-				auto match = try_to_merge(s_ref);
-				if (match != states.end()) {
+				bool merged = try_to_merge(s_ref);
+				if (merged) {
 					// great, we merged!
 					// clean up the just-created state that we no longer need
-					states.pop_back();
-					s_ref = match;
+					dealloc_state(tmp);
 				} else {
 					// nope, need to explore this state
 					// add to list of states that still need to be explored
@@ -416,12 +434,7 @@ namespace NP {
 				return *s_ref;
 			}
 
-			std::size_t index_of(const State_ref s_ref)
-			{
-				return s_ref - states.begin();
-			}
-
-			State_ref try_to_merge(State_ref s_ref)
+			bool try_to_merge(State_ref& s_ref)
 			{
 				State& s = *s_ref;
 				auto matches = states_by_key.equal_range(s.get_key());
@@ -432,22 +445,23 @@ namespace NP {
 					   << found << std::endl);
 					if (try_to_merge_into(s, found)) {
 						DM("$$$$ Merge attempt succeeded: " << found << std::endl);
-						return it->second;
+						s_ref = it->second;
+						return true;
 					}
 					DM("$$$$ Merge attempt failed." << std::endl);
 				}
-				return states.end();
+				return false;
 			}
 
 			// get next state to explore in breadth-first search
-			const State& next_state()
+			State_ref next_state()
 			{
 				if (todo[todo_idx].empty()) {
 					current_job_count++;
 					todo_idx = current_job_count % num_todo_queues;
 				}
 				auto s = todo[todo_idx].front();
-				return *s;
+				return s;
 			}
 
 			void check_cpu_timeout()
@@ -779,11 +793,11 @@ namespace NP {
 				make_initial_state();
 				if (!be_naive) {
 					// add initial state to cache
-					cache_state(states.begin());
+					cache_state(next_state());
 				}
 
 				while (not_done() && !aborted) {
-					const State& s = next_state();
+					const State& s = *next_state();
 
 					explore_state(s);
 
