@@ -109,6 +109,8 @@ namespace NP {
 				return cpu_time;
 			}
 
+			typedef std::deque<State> States;
+
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 
 			struct Edge {
@@ -158,9 +160,9 @@ namespace NP {
 				return edges;
 			}
 
-			const std::deque<State>& get_states() const
+			const std::deque<States>& get_states() const
 			{
-				return states;
+				return states_storage;
 			}
 
 #endif
@@ -168,7 +170,6 @@ namespace NP {
 
 			typedef Job_set Scheduled;
 
-			typedef std::deque<State> States;
 			typedef typename std::deque<State>::iterator State_ref;
 			typedef std::unordered_multimap<hash_value_t, State_ref> States_map;
 
@@ -198,17 +199,19 @@ namespace NP {
 
 			Jobs_lut jobs_by_win;
 
+			std::deque<States> states_storage;
+
 			By_time_map jobs_by_latest_arrival;
 			By_time_map jobs_by_earliest_arrival;
 			By_time_map jobs_by_deadline;
 
-			States states;
 			unsigned long num_states, num_edges, width;
 			States_map states_by_key;
 
 			static const std::size_t num_todo_queues = 3;
 
 			Todo_queue todo[num_todo_queues];
+
 			int todo_idx;
 			unsigned long current_job_count;
 
@@ -344,6 +347,7 @@ namespace NP {
 			void make_initial_state()
 			{
 				// construct initial state
+				states_storage.emplace_back();
 				new_state(num_cpus);
 			}
 
@@ -353,23 +357,22 @@ namespace NP {
 				width = std::max(width, (unsigned long) todo[idx].size() - 1);
 			}
 
+			States& states()
+			{
+				return states_storage.back();
+			}
 
 			template <typename... Args>
 			State_ref alloc_state(Args&&... args)
 			{
-				states.emplace_back(std::forward<Args>(args)...);
-				return --states.end();
+				states().emplace_back(std::forward<Args>(args)...);
+				return --states().end();
 			}
 
 			void dealloc_state(State_ref s)
 			{
-				assert(--states.end() == s);
-				states.pop_back();
-			}
-
-			std::size_t index_of(const State_ref s_ref)
-			{
-				return s_ref - states.begin();
+				assert(--states().end() == s);
+				states().pop_back();
 			}
 
 			template <typename... Args>
@@ -441,7 +444,7 @@ namespace NP {
 				for (auto it = matches.first; it != matches.second; it++) {
 					State &found = *it->second;
 					DM("$$$$ Attempting to merge " << s << " into "
-					   << "S" << index_of(it->second) << ": "
+					   << *it->second << ": "
 					   << found << std::endl);
 					if (try_to_merge_into(s, found)) {
 						DM("$$$$ Merge attempt succeeded: " << found << std::endl);
@@ -499,8 +502,8 @@ namespace NP {
 				// memory.
 
 				// delete from master sequence to free up memory
-				assert(states.begin() == s);
-				states.pop_front();
+				assert(states_storage.front().begin() == s);
+				states_storage.front().pop_front();
 #endif
 			}
 
@@ -735,8 +738,7 @@ namespace NP {
 
 			void explore_state(const State& s)
 			{
-				DM("\nLooking at: S" << index_of(todo[todo_idx].front())
-				   << " " << s << std::endl);
+				DM("\nLooking at: " << s << std::endl);
 
 				auto rjs = s.get_running_jobs();
 
@@ -817,21 +819,23 @@ namespace NP {
 					std::map<const Schedule_state<Time>*, unsigned int> state_id;
 					unsigned int i = 0;
 					out << "digraph {" << std::endl;
-					for (const Schedule_state<Time>& s : space.get_states()) {
-						state_id[&s] = i++;
-						out << "\tS" << state_id[&s]
-							<< "[label=\"S" << state_id[&s] << ": [";
-						for (const auto& rj : s.get_running_jobs()) {
-							out << (rj.is_idle() ? "(idle, " : "(busy, ");
-							if (rj.earliest_finish_time() ==
-							    Time_model::constants<Time>::infinity()) {
-								out << "infinity, infinity)";
-							} else {
-								out << rj.earliest_finish_time() << ", "
-									<< rj.latest_finish_time() << ")";
+					for (const States& states : space.get_states()) {
+						for (const Schedule_state<Time>& s : states) {
+							state_id[&s] = i++;
+							out << "\tS" << state_id[&s]
+								<< "[label=\"S" << state_id[&s] << ": [";
+							for (const auto& rj : s.get_running_jobs()) {
+								out << (rj.is_idle() ? "(idle, " : "(busy, ");
+								if (rj.earliest_finish_time() ==
+									Time_model::constants<Time>::infinity()) {
+									out << "infinity, infinity)";
+								} else {
+									out << rj.earliest_finish_time() << ", "
+										<< rj.latest_finish_time() << ")";
+								}
 							}
+							out << "]\"];" << std::endl;
 						}
-						out << "]\"];" << std::endl;
 					}
 					for (const auto& e : space.get_edges()) {
 						out << "\tS" << state_id[e.source]
