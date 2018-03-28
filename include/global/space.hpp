@@ -349,6 +349,8 @@ namespace NP {
 				// construct initial state
 				states_storage.emplace_back();
 				new_state(num_cpus);
+				// allocate states space for next depth
+				states_storage.emplace_back();
 			}
 
 			void update_stats(State_ref s, std::size_t idx)
@@ -461,6 +463,15 @@ namespace NP {
 			{
 				if (todo[todo_idx].empty()) {
 					current_job_count++;
+					// allocate storage for the next set of states
+					states_storage.emplace_back();
+
+#ifndef CONFIG_COLLECT_SCHEDULE_GRAPH
+					// If we don't need to collect all states, we can remove
+					// all those that we are done with, which saves a lot of
+					// memory.
+					states_storage.pop_front();
+#endif
 					todo_idx = current_job_count % num_todo_queues;
 				}
 				auto s = todo[todo_idx].front();
@@ -492,19 +503,9 @@ namespace NP {
 
 			void done_with_current_state()
 			{
-				State_ref s = todo[todo_idx].front();
+// 				State_ref s = todo[todo_idx].front();
 				// remove from list of states that still need to be explored
 				todo[todo_idx].pop_front();
-
-#ifndef CONFIG_COLLECT_SCHEDULE_GRAPH
-				// If we don't need to collect all states, we can remove
-				// all those that we are done with, which saves a lot of
-				// memory.
-
-				// delete from master sequence to free up memory
-				assert(states_storage.front().begin() == s);
-				states_storage.front().pop_front();
-#endif
 			}
 
 			bool not_done()
