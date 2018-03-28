@@ -1,12 +1,11 @@
 #ifndef GLOBAL_SPACE_H
 #define GLOBAL_SPACE_H
 
-#include <unordered_set>
 #include <unordered_map>
 #include <map>
 #include <vector>
 #include <deque>
-#include <list>
+#include <forward_list>
 #include <algorithm>
 
 #include <iostream>
@@ -171,7 +170,8 @@ namespace NP {
 			typedef Job_set Scheduled;
 
 			typedef typename std::deque<State>::iterator State_ref;
-			typedef std::unordered_multimap<hash_value_t, State_ref> States_map;
+			typedef typename std::forward_list<State_ref> State_refs;
+			typedef std::unordered_map<hash_value_t, State_refs> States_map;
 
 			typedef const Job<Time>* Job_ref;
 			typedef std::multimap<Time, Job_ref> By_time_map;
@@ -322,7 +322,15 @@ namespace NP {
 			void cache_state(State_ref s)
 			{
 				// make it available for fast lookup
-				states_by_key.insert(std::make_pair(s->get_key(), s));
+
+				// create a new list if needed, or lookup if already existing
+				auto res = states_by_key.emplace(
+					std::make_pair(s->get_key(), State_refs()));
+
+				auto pair_it = res.first;
+				State_refs& list = pair_it->second;
+
+				list.push_front(s);
 			}
 
 			void make_initial_state()
@@ -407,15 +415,20 @@ namespace NP {
 			bool try_to_merge(State_ref& s_ref)
 			{
 				State& s = *s_ref;
-				auto matches = states_by_key.equal_range(s.get_key());
-				for (auto it = matches.first; it != matches.second; it++) {
-					State &found = *it->second;
+
+				const auto pair_it = states_by_key.find(s.get_key());
+
+				// cannot merge if key doesn't exist
+				if (pair_it == states_by_key.end())
+					return false;
+
+				for (State_ref other : pair_it->second) {
+					State &found = *other;
 					DM("$$$$ Attempting to merge " << s << " into "
-					   << *it->second << ": "
 					   << found << std::endl);
 					if (try_to_merge_into(s, found)) {
 						DM("$$$$ Merge attempt succeeded: " << found << std::endl);
-						s_ref = it->second;
+						s_ref = other;
 						return true;
 					}
 					DM("$$$$ Merge attempt failed." << std::endl);
