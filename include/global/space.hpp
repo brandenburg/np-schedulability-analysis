@@ -208,11 +208,6 @@ namespace NP {
 			unsigned long num_states, num_edges, width;
 			States_map states_by_key;
 
-			static const std::size_t num_todo_queues = 3;
-
-			Todo_queue todo[num_todo_queues];
-
-			int todo_idx;
 			unsigned long current_job_count;
 
 			Processor_clock cpu_time;
@@ -236,7 +231,6 @@ namespace NP {
 			, num_states(0)
 			, num_edges(0)
 			, width(0)
-			, todo_idx(0)
 			, current_job_count(0)
 			, num_cpus(num_cpus)
 			{
@@ -349,14 +343,12 @@ namespace NP {
 				// construct initial state
 				states_storage.emplace_back();
 				new_state(num_cpus);
-				// allocate states space for next depth
-				states_storage.emplace_back();
 			}
 
-			void update_stats(State_ref s, std::size_t idx)
+			void update_stats(State_ref s)
 			{
 				num_states++;
-				width = std::max(width, (unsigned long) todo[idx].size() - 1);
+				width = std::max(width, states().size());
 			}
 
 			States& states()
@@ -407,11 +399,7 @@ namespace NP {
 			{
 				auto s_ref = make_state(std::forward<Args>(args)...);
 
-				// add to list of states that still need to be explored
-				auto idx = s_ref->get_scheduled_jobs().size() % num_todo_queues;
-				todo[idx].push_back(s_ref);
-
-				update_stats(s_ref, idx);
+				update_stats(s_ref);
 
 				return *s_ref;
 			}
@@ -430,11 +418,8 @@ namespace NP {
 					dealloc_state(tmp);
 				} else {
 					// nope, need to explore this state
-					// add to list of states that still need to be explored
-					auto idx = s_ref->get_scheduled_jobs().size() % num_todo_queues;
-					todo[idx].push_back(s_ref);
 					cache_state(s_ref);
-					update_stats(s_ref, idx);
+					update_stats(s_ref);
 				}
 				return *s_ref;
 			}
@@ -458,26 +443,6 @@ namespace NP {
 				return false;
 			}
 
-			// get next state to explore in breadth-first search
-			State_ref next_state()
-			{
-				if (todo[todo_idx].empty()) {
-					current_job_count++;
-					// allocate storage for the next set of states
-					states_storage.emplace_back();
-
-#ifndef CONFIG_COLLECT_SCHEDULE_GRAPH
-					// If we don't need to collect all states, we can remove
-					// all those that we are done with, which saves a lot of
-					// memory.
-					states_storage.pop_front();
-#endif
-					todo_idx = current_job_count % num_todo_queues;
-				}
-				auto s = todo[todo_idx].front();
-				return s;
-			}
-
 			void check_cpu_timeout()
 			{
 				if (timeout && get_cpu_time() > timeout) {
@@ -488,30 +453,8 @@ namespace NP {
 
 			void check_depth_abort()
 			{
-				if (max_depth && current_job_count == max_depth
-				    && todo[todo_idx].empty()) {
+				if (max_depth && current_job_count > max_depth)
 					aborted = true;
-				}
-			}
-
-			void uncache_current_state()
-			{
-				State_ref s = todo[todo_idx].front();
-				// remove from lookup map
-				uncache_state(s);
-			}
-
-			void done_with_current_state()
-			{
-// 				State_ref s = todo[todo_idx].front();
-				// remove from list of states that still need to be explored
-				todo[todo_idx].pop_front();
-			}
-
-			bool not_done()
-			{
-				return current_job_count < jobs.size()
-				       || !todo[todo_idx].empty();
 			}
 
 			bool merge_condition_met_at(
@@ -796,19 +739,40 @@ namespace NP {
 				make_initial_state();
 				if (!be_naive) {
 					// add initial state to cache
-					cache_state(next_state());
+					cache_state(states_storage.front().begin());
 				}
 
-				while (not_done() && !aborted) {
-					const State& s = *next_state();
+				while (current_job_count < jobs.size() && !aborted) {
+					States& exploration_front = states();
+					// allocate states space for next depth
+					states_storage.emplace_back();
 
-					explore_state(s);
+					// explore all states at the current depth
+					for (const State& s : exploration_front) {
+						explore_state(s);
+						check_cpu_timeout();
+						if (aborted)
+							break;
+					}
 
-					if (!be_naive)
-						uncache_current_state();
-					done_with_current_state();
-					check_cpu_timeout();
+					// clean up the state cache if necessary
+					if (!be_naive) {
+						for (State_ref s_ref = exploration_front.begin();
+							 s_ref != exploration_front.end();
+							 s_ref++) {
+							uncache_state(s_ref);
+						}
+					}
+
+					current_job_count++;
 					check_depth_abort();
+
+#ifndef CONFIG_COLLECT_SCHEDULE_GRAPH
+					// If we don't need to collect all states, we can remove
+					// all those that we are done with, which saves a lot of
+					// memory.
+					states_storage.pop_front();
+#endif
 				}
 			}
 
