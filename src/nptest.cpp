@@ -6,6 +6,14 @@
 
 #include "OptionParser.h"
 
+#include "config.h"
+
+#ifdef CONFIG_PARALLEL
+
+#include "tbb/task_scheduler_init.h"
+
+#endif
+
 #include "uni/space.hpp"
 #include "global/space.hpp"
 #include "io.hpp"
@@ -34,6 +42,10 @@ static unsigned int max_depth = 0;
 
 static bool want_rta_file;
 
+#ifdef CONFIG_PARALLEL
+static unsigned int num_worker_threads = 0;
+#endif
+
 struct Analysis_result {
 	bool schedulable;
 	bool timeout;
@@ -46,6 +58,11 @@ struct Analysis_result {
 template<class Time, class Space>
 static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 {
+#ifdef CONFIG_PARALLEL
+	tbb::task_scheduler_init init(
+		num_worker_threads ? num_worker_threads : tbb::task_scheduler_init::automatic);
+#endif
+
 	auto jobs = NP::parse_file<Time>(in);
 	auto dag = NP::parse_dag_file(dag_in);
 
@@ -226,6 +243,10 @@ int main(int argc, char** argv)
 	      .help("set the number of processors of the platform")
 	      .set_default("1");
 
+	parser.add_option("--threads").dest("num_threads")
+	      .help("set the number of worker threads (parallel analysis)")
+	      .set_default("0");
+
 	parser.add_option("-g", "--save-graph").dest("dot").set_default("0")
 	      .action("store_const").set_const("1")
 	      .help("store the state graph in Graphviz dot format (default: off)");
@@ -280,6 +301,17 @@ int main(int argc, char** argv)
 		          << "during compilation (CONFIG_COLLECT_SCHEDULE_GRAPH "
 		          << "is not set)." << std::endl;
 		return 2;
+	}
+#endif
+
+#ifdef CONFIG_PARALLEL
+	num_worker_threads = options.get("num_threads");
+#else
+	if (options.is_set_by_user("num_threads")) {
+		std::cerr << "Error: parallel analysis must be enabled "
+		          << "during compilation (CONFIG_PARALLEL "
+		          << "is not set)." << std::endl;
+		return 3;
 	}
 #endif
 
