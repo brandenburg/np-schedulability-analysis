@@ -32,6 +32,11 @@ template<class T> class Interval {
 		return a;
 	}
 
+	const T& min() const
+	{
+		return a;
+	}
+
 	const T& starting_at() const
 	{
 		return a;
@@ -43,6 +48,11 @@ template<class T> class Interval {
 	}
 
 	const T& upto() const
+	{
+		return b;
+	}
+
+	const T& max() const
 	{
 		return b;
 	}
@@ -113,6 +123,11 @@ template<class T> class Interval {
 	void lower_bound(T lb)
 	{
 		a = std::max(lb, a);
+	}
+
+	void extend_to(T b_at_least)
+	{
+		b = std::max(b_at_least, b);
 	}
 
 	T length() const
