@@ -96,6 +96,11 @@ namespace NP {
 			return cost.upto();
 		}
 
+		const Interval<Time>& get_cost() const
+		{
+			return cost;
+		}
+
 		Priority get_priority() const
 		{
 			return priority;
