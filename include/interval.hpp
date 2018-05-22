@@ -67,6 +67,17 @@ template<class T> class Interval {
 		return other.from() == from() && other.until() == until();
 	}
 
+	void operator +=(T offset)
+	{
+		a += offset;
+		b += offset;
+	}
+
+	Interval<T> operator+(const Interval<T>& other) const
+	{
+		return {a + other.a, b + other.b};
+	}
+
 	Interval<T> merge(const Interval<T>& other) const
 	{
 		return Interval<T>{std::min(from(), other.from()),
