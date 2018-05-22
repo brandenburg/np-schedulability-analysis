@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.8)
 
 project(NP_schedulabiliy_test)
 
-#set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
 option(USE_TBB_MALLOC "Use the Intel TBB scalable memory allocator" ON)
 option(USE_JE_MALLOC "Use the Facebook jemalloc scalable memory allocator" OFF)
+
+option(DEBUG "Enable debugging" OFF)
+
+if (DEBUG)
+    set(CMAKE_BUILD_TYPE Debug)
+else()
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 
 include_directories(include)
 include_directories(lib/include)
