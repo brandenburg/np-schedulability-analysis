@@ -90,6 +90,11 @@ template<class T> class Interval {
 		b = std::max(until(), other.until());
 	}
 
+	void operator|=(const Interval<T>& other)
+	{
+		widen(other);
+	}
+
 	void lower_bound(T lb)
 	{
 		a = std::max(lb, a);
