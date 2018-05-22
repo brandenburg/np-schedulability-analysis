@@ -22,6 +22,11 @@ template<class T> class Interval {
 		}
 	}
 
+	Interval(const std::pair<T, T> p)
+	: Interval(p.first, p.second)
+	{
+	}
+
 	const T& from() const
 	{
 		return a;
@@ -76,6 +81,11 @@ template<class T> class Interval {
 	Interval<T> operator+(const Interval<T>& other) const
 	{
 		return {a + other.a, b + other.b};
+	}
+
+	Interval<T> operator+(const std::pair<T, T>& other) const
+	{
+		return {a + other.first, b + other.second};
 	}
 
 	Interval<T> merge(const Interval<T>& other) const
