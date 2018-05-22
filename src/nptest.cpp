@@ -207,6 +207,20 @@ static void process_file(const std::string& fname,
 	}
 }
 
+static void print_header(){
+	std::cout << "# file name"
+	          << ", schedulable?"
+	          << ", #jobs"
+	          << ", #states"
+	          << ", #edges"
+	          << ", max width"
+	          << ", CPU time"
+	          << ", memory"
+	          << ", timeout"
+	          << ", #CPUs"
+	          << std::endl;
+}
+
 int main(int argc, char** argv)
 {
 	auto parser = optparse::OptionParser();
@@ -245,6 +259,11 @@ int main(int argc, char** argv)
 
 	parser.add_option("--threads").dest("num_threads")
 	      .help("set the number of worker threads (parallel analysis)")
+	      .set_default("0");
+
+	parser.add_option("--header").dest("print_header")
+	      .help("print a column header")
+	      .action("store_const").set_const("1")
 	      .set_default("0");
 
 	parser.add_option("-g", "--save-graph").dest("dot").set_default("0")
@@ -314,6 +333,9 @@ int main(int argc, char** argv)
 		return 3;
 	}
 #endif
+
+	if (options.get("print_header"))
+		print_header();
 
 	for (auto f : parser.args())
 		process_file(f, options.get("precedence_file"));
