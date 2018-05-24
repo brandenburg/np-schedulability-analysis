@@ -90,6 +90,11 @@ template<class T> class Interval {
 		b = std::max(until(), other.until());
 	}
 
+	Interval<T> operator|(const Interval<T>& other) const
+	{
+		return merge(other);
+	}
+
 	void operator|=(const Interval<T>& other)
 	{
 		widen(other);
