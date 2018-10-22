@@ -1,9 +1,13 @@
 # NP Schedulability Test
 
-This repository contains the implementation of the **exact and sustainable schedulability test** for sets of **non-preemptive jobs** scheduled upon a **uniprocessor** presented in the paper
+This repository contains the implementation of the **schedulability tests** for sets of **non-preemptive jobs** scheduled upon **uni- or multiprocessors** presented in the papers
 
-- M. Nasri and B. Brandenburg, “[An Exact and Sustainable Analysis of Non-Preemptive Scheduling](https://people.mpi-sws.org/~bbb/papers/pdf/rtss17.pdf)”, *Proceedings of the 38th IEEE Real-Time Systems Symposium (RTSS 2017)*, December 2017.
+- M. Nasri and B. Brandenburg, “[An Exact and Sustainable Analysis of Non-Preemptive Scheduling](https://people.mpi-sws.org/~bbb/papers/pdf/rtss17.pdf)”, *Proceedings of the 38th IEEE Real-Time Systems Symposium (RTSS 2017)*, December 2017, and
 
+- M. Nasri, G. Nelissen, and B. Brandenburg, “[A Response-Time Analysis for Non-Preemptive Job Sets under Global Scheduling](http://drops.dagstuhl.de/opus/frontdoor.php?source_opus=8994)”, *Proceedings of the 30th Euromicro Conference on Real-Time Systems (ECRTS 2018)*, July 2018.
+
+
+The uniprocessor analysis (Nasri & Brandenburg, 2017) is exact; the multiprocessor analysis (Nasri et al., 2018) is not. 
 
 ## Dependencies
 
@@ -19,13 +23,11 @@ These instructions assume a Linux or macOS host.
 
 To compile the tool, first generate an appropriate `Makefile` with `cmake` and then use it to actually build the source tree.
 
-	# (1) create a build directory
-	make build
-	# (2) enter the build directory
+	# (1) enter the build directory
 	cd build
-	# (3) generate the Makefile
+	# (2) generate the Makefile
 	cmake ..
-	# (4) build everything
+	# (3) build everything
 	make -j
 
 The last step yields two binaries:
@@ -46,6 +48,8 @@ $ ./runtests
 [doctest] assertions:    260 |    260 passed |      0 failed |
 [doctest] Status: SUCCESS!
 ```
+
+**Note**: the multiprocessor analysis currently fails two tests because it is only sound, but not precise. This is known and ok.
 
 
 ## Input Format
@@ -92,6 +96,8 @@ examples/fig1a.csv,  1,  9,  10,  9,  0,  0.000121,  848.000000,  0, 1
 
 When analyzing a job set with **dense-time parameters** (i.e., time values specified as floating-point numbers), the option `-t dense` **must** be passed. 
 
+To use the multiprocessor analysis, use the `-m` option. 
+
 See the builtin help (`nptest -h`) for further options.
 
 ## Output Format
@@ -99,7 +105,7 @@ See the builtin help (`nptest -h`) for further options.
 The output is provided in CSV format and consists of the following columns:
 
 1. The input file name.
-2. The schedulability result: 1 if the job is *is* schedulable, 0 if it is *not*.
+2. The schedulability result: 1 if the job is is schedulable, 0 if it is not (or if an inexact analysis can't prove it to be schedulable).
 3. The number of jobs in the job set.
 4. The number of states that were explored.
 5. The number of edges that were discovered. 
