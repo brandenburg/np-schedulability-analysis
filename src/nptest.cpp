@@ -43,6 +43,8 @@ static unsigned int max_depth = 0;
 
 static bool want_rta_file;
 
+static bool continue_after_dl_miss = false;
+
 #ifdef CONFIG_PARALLEL
 static unsigned int num_worker_threads = 0;
 #endif
@@ -70,8 +72,10 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 	NP::validate_prec_refs<Time>(dag, jobs);
 
 	auto space = want_naive ?
-		Space::explore_naively(jobs, timeout, jobs.size(), dag, num_processors, max_depth)
-		: Space::explore(jobs, timeout, jobs.size(), dag, num_processors, max_depth);
+		Space::explore_naively(jobs, timeout, jobs.size(), dag, num_processors,
+		                       max_depth, !continue_after_dl_miss)
+		: Space::explore(jobs, timeout, jobs.size(), dag, num_processors,
+		                 max_depth, !continue_after_dl_miss);
 
 	auto graph = std::ostringstream();
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
@@ -280,6 +284,13 @@ int main(int argc, char** argv)
 	      .action("store_const").set_const("1")
 	      .help("store the best- and worst-case response times (default: off)");
 
+	parser.add_option("-c", "--continue-after-deadline-miss")
+	      .dest("go_on_after_dl").set_default("0")
+	      .action("store_const").set_const("1")
+	      .help("do not abort the analysis on the first deadline miss "
+	            "(default: off)");
+
+
 	auto options = parser.parse_args(argc, argv);
 
 	const std::string& time_model = options.get("time_model");
@@ -317,6 +328,8 @@ int main(int argc, char** argv)
 	}
 
 	want_rta_file = options.get("rta");
+
+	continue_after_dl_miss = options.get("go_on_after_dl");
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	want_dot_graph = options.get("dot");
