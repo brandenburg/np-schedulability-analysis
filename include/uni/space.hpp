@@ -308,6 +308,11 @@ namespace NP {
 
 			void check_for_deadline_misses(const State& s, const State& new_s)
 			{
+				// This is only required if we are looking for an early exit,
+				// so bail out if we don't.
+				if (!early_exit)
+					return;
+
 				// check if we skipped any jobs that are now guaranteed
 				// to miss their deadline
 				for (auto it = jobs_by_deadline
