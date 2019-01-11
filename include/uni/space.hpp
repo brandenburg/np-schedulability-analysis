@@ -44,10 +44,9 @@ namespace NP {
 			{
 				// this is a uniprocessor analysis
 				assert(num_processors == 1);
-				// doesn't yet support exploration after deadline miss
-				assert(early_exit);
 
-				auto s = State_space(jobs, dag, timeout, max_depth, num_buckets);
+				auto s = State_space(jobs, dag, timeout, max_depth, num_buckets,
+				                     early_exit);
 				s.cpu_time.start();
 				s.explore_naively();
 				s.cpu_time.stop();
@@ -65,10 +64,9 @@ namespace NP {
 			{
 				// this is a uniprocessor analysis
 				assert(num_processors == 1);
-				// doesn't yet support exploration after deadline miss
-				assert(early_exit);
 
-				auto s = State_space(jobs, dag, timeout,  max_depth, num_buckets);
+				auto s = State_space(jobs, dag, timeout, max_depth,
+				                     num_buckets, early_exit);
 				s.cpu_time.start();
 				s.explore();
 				s.cpu_time.stop();
@@ -87,7 +85,7 @@ namespace NP {
 
 			bool is_schedulable() const
 			{
-				return !aborted;
+				return !aborted && !observed_deadline_miss;
 			}
 
 			bool was_timed_out() const
@@ -226,11 +224,15 @@ namespace NP {
 
 			unsigned int max_depth;
 
+			bool early_exit;
+			bool observed_deadline_miss;
+
 			State_space(const Workload& jobs,
 			            const Precedence_constraints &dag_edges,
 			            double max_cpu_time = 0,
 			            unsigned int max_depth = 0,
-			            std::size_t num_buckets = 1000)
+			            std::size_t num_buckets = 1000,
+			            bool early_exit = true)
 			: jobs_by_win(Interval<Time>{0, max_deadline(jobs)},
 			              max_deadline(jobs) / num_buckets)
 			, jobs(jobs)
@@ -245,6 +247,8 @@ namespace NP {
 			, todo_idx(0)
 			, current_job_count(0)
 			, job_precedence_sets(jobs.size())
+			, early_exit(early_exit)
+			, observed_deadline_miss(false)
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -275,13 +279,16 @@ namespace NP {
 				if (rbounds == rta.end()) {
 					rta.emplace(&j, range);
 					if (j.exceeds_deadline(range.upto()))
-						aborted = true;
+						observed_deadline_miss = true;
 				} else {
 					rbounds->second.widen(range);
 					if (j.exceeds_deadline(rbounds->second.upto()))
-						aborted = true;
+						observed_deadline_miss = true;
 				}
 				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);
+
+				if (early_exit && observed_deadline_miss)
+					aborted = true;
 			}
 
 			std::size_t index_of(const Job<Time>& j) const
