@@ -17,6 +17,10 @@ The uniprocessor analysis (Nasri & Brandenburg, 2017) is exact; the multiprocess
 
 - A POSIX OS. Linux and macOS are both known to work.
 
+- The [Intel Thread Building Blocks (TBB)](https://www.threadingbuildingblocks.org) library and parallel runtime. 
+
+- The [jemalloc](http://jemalloc.net) scalable memory allocator. Alternatively, the TBB allocator can be used instead, see build options below.
+
 ## Build Instructions
 
 These instructions assume a Linux or macOS host.
@@ -34,6 +38,20 @@ The last step yields two binaries:
 
 - `nptest`, the actually schedulability analysis tool, and
 - `runtests`, the unit test suite (described next). 
+
+## Build Options
+
+To enable debug builds, pass the `DEBUG` option to `cmake` in step (3).
+
+    cmake -DDEBUG=yes ..
+
+By default, `nptest` uses `jemalloc`. To instead use the parallel allocator that comes with Intel TBB, set `USE_JE_MALLOC` to `no` and `USE_TBB_MALLOC` to `yes`.
+
+    cmake -DUSE_JE_MALLOC=no -DUSE_TBB_MALLOC=yes ..
+
+To use the default `libc` allocator (which is a tremendous scalability bottleneck), set both options to `no`.
+
+    cmake -DUSE_JE_MALLOC=no -DUSE_TBB_MALLOC=no ..
 
 ## Unit Tests
 
