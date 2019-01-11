@@ -48,6 +48,12 @@ To enable debug builds, pass the `DEBUG` option to `cmake` .
 
     cmake -DDEBUG=yes ..
 
+To enable the collection of schedule graphs (the `-g` option in `nptest`), set the option `COLLECT_SCHEDULE_GRAPHS` to `yes`. 
+
+    cmake -DCOLLECT_SCHEDULE_GRAPHS=yes  ..
+
+Note that enabling `COLLECT_SCHEDULE_GRAPHS` turns off parallel analysis, i.e., the analysis becomes single-threaded, so don't turn it on by default. It is primarily a debugging aid. 
+
 By default, `nptest` uses `jemalloc`. To instead use the parallel allocator that comes with Intel TBB, set `USE_JE_MALLOC` to `no` and `USE_TBB_MALLOC` to `yes`.
 
     cmake -DUSE_JE_MALLOC=no -DUSE_TBB_MALLOC=yes ..

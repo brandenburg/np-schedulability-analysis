@@ -7,6 +7,8 @@ option(USE_JE_MALLOC "Use the Facebook jemalloc scalable memory allocator" OFF)
 
 option(DEBUG "Enable debugging" OFF)
 
+option(COLLECT_SCHEDULE_GRAPHS "Enable the collection of schedule graphs" OFF)
+
 if (DEBUG)
     set(CMAKE_BUILD_TYPE Debug)
 else()
@@ -16,7 +18,9 @@ endif()
 include_directories(include)
 include_directories(lib/include)
 
-#set(SOURCES "src/schedule_space.cpp")
+if (COLLECT_SCHEDULE_GRAPHS)
+    add_compile_definitions(CONFIG_COLLECT_SCHEDULE_GRAPH)
+endif()
 
 set(TBB_LIB "tbb")
 set(JEMALLOC_LIB "jemalloc")
