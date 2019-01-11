@@ -21,13 +21,11 @@ TEST_CASE("Example in Figure 1(a,b)") {
 
 		// middle task
 		Job<dtime_t>{7, I( 0,  0), I(7, 8), 30, 30},
-		Job<dtime_t>{8, I(30, 30), I(7, 7), 60, 60},
+		Job<dtime_t>{8, I(30, 30), I(7, 8), 60, 60},
 
 		// the long task
 		Job<dtime_t>{9, I( 0,  0), I(3, 13), 60, 60}
 	};
-
-// 	Uniproc::State_space space{jobs};
 
 	SUBCASE("Naive state evolution (figure 2)") {
 		Uniproc::Schedule_state<dtime_t> v1;
@@ -111,11 +109,45 @@ TEST_CASE("Example in Figure 1(a,b)") {
 	SUBCASE("Naive exploration") {
 		auto space = Uniproc::State_space<dtime_t>::explore_naively(jobs);
 		CHECK(!space.is_schedulable());
+
+		// make sure we saw the right deadline miss
+		auto ftimes = space.get_finish_times(jobs[1]);
+		CHECK(ftimes.min() == 11);
+		CHECK(ftimes.max() == 24);
 	}
 
 	SUBCASE("Exploration with state-merging") {
 		auto space = Uniproc::State_space<dtime_t>::explore(jobs);
 		CHECK(!space.is_schedulable());
+
+		// make sure we saw the right deadline miss
+		auto ftimes = space.get_finish_times(jobs[1]);
+		CHECK(ftimes.min() == 11);
+		CHECK(ftimes.max() == 24);
+	}
+
+	SUBCASE("Exploration after deadline miss") {
+		// explore with early_exit = false
+		auto space = Uniproc::State_space<dtime_t>
+			::explore(jobs, 0, 1000, Precedence_constraints(), 1, 0, false);
+		CHECK(!space.is_schedulable());
+
+		// make sure the analysis continued after the deadline miss
+		auto ftimes = space.get_finish_times(jobs[5]);
+		CHECK(ftimes.min() == 51);
+		CHECK(ftimes.max() == 52);
+
+		ftimes = space.get_finish_times(jobs[4]);
+		CHECK(ftimes.min() == 41);
+		CHECK(ftimes.max() == 42);
+
+		ftimes = space.get_finish_times(jobs[3]);
+		CHECK(ftimes.min() == 31);
+		CHECK(ftimes.max() == 32);
+
+		ftimes = space.get_finish_times(jobs[7]);
+		CHECK(ftimes.min() == 38);
+		CHECK(ftimes.max() == 40);
 	}
 }
 
