@@ -43,8 +43,12 @@ namespace NP {
 					std::size_t num_buckets = 1000,
 					const Precedence_constraints& dag = Precedence_constraints(),
 					unsigned int num_processors = 1,
-					unsigned int max_depth = 0)
+					unsigned int max_depth = 0,
+					bool early_exit = true)
 			{
+				// doesn't yet support exploration after deadline miss
+				assert(early_exit);
+
 				auto s = State_space(jobs, dag, num_processors, timeout,
 				                     max_depth, num_buckets);
 				s.cpu_time.start();
@@ -59,8 +63,12 @@ namespace NP {
 					std::size_t num_buckets = 1000,
 					const Precedence_constraints& dag = Precedence_constraints(),
 					unsigned int num_processors = 1,
-					unsigned int max_depth = 0)
+					unsigned int max_depth = 0,
+					bool early_exit = true)
 			{
+				// doesn't yet support exploration after deadline miss
+				assert(early_exit);
+
 				auto s = State_space(jobs, dag, num_processors, timeout,
 				                     max_depth, num_buckets);
 				s.cpu_time.start();
