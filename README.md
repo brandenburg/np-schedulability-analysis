@@ -202,7 +202,7 @@ If invoked on an input file named `foo.csv`, the completion times will be stored
 5. BCRT, the best-case response time (relative to the minimum release time)
 6. WCRT, the worst-case response time (relative to the minimum release time)
 
-Note that the analysis by default aborts after finding the first deadline miss, in which case some of the rows may report nonsensical default values.  
+Note that the analysis by default aborts after finding the first deadline miss, in which case some of the rows may report nonsensical default values.  To force the analysis to run to completion despite deadline misses, pass the `-c` flag to `nptest`.
 
 ## Questions, Patches, or Suggestions
 
