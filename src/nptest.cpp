@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
 
 #include <sys/resource.h>
 
@@ -81,13 +82,18 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 	auto rta = std::ostringstream();
 
 	if (want_rta_file) {
-		rta << "Task ID, Job ID, BCRT, WCRT" << std::endl;
+		rta << "Task ID, Job ID, BCCT, WCCT, BCRT, WCRT" << std::endl;
 		for (const auto& j : jobs) {
-			Interval<Time> response = space.get_finish_times(j);
+			Interval<Time> finish = space.get_finish_times(j);
 			rta << j.get_task_id() << ", "
 			    << j.get_id() << ", "
-			    << response.from() << ", "
-			    << response.until() << std::endl;
+			    << finish.from() << ", "
+			    << finish.until() << ", "
+			    << std::max<long long>(0,
+			                           (finish.from() - j.earliest_arrival()))
+			    << ", "
+			    << (finish.until() - j.earliest_arrival())
+			    << std::endl;
 		}
 	}
 
