@@ -285,7 +285,8 @@ namespace NP {
 					if (j.exceeds_deadline(rbounds->second.upto()))
 						observed_deadline_miss = true;
 				}
-				DM("RTA " << j.get_id() << ": " << rta.find(&j)->second << std::endl);
+				DM("      New finish time range for " << j
+				   << ": " << rta.find(&j)->second << std::endl);
 
 				if (early_exit && observed_deadline_miss)
 					aborted = true;
@@ -354,7 +355,7 @@ namespace NP {
 				     it != jobs_by_latest_arrival.end(); it++) {
 					const Job<Time>& j = *(it->second);
 
-					DM("ncjr:: "  << j << std::endl);
+					DM(__FUNCTION__ << " considering:: "  << j << std::endl);
 
 					// not relevant if already scheduled
 					if (!incomplete(already_scheduled, j))
@@ -415,17 +416,19 @@ namespace NP {
 			{
 				auto ts_min = s.earliest_finish_time();
 
-				DM("~~@~~ " << ts_min << ": " << reference_job << std::endl);
+				DM("      ? looking for jobs released by " << ts_min << std::endl);
 				for (const Job<Time>& j : jobs_by_win.lookup(ts_min)) {
-					DM(":?: " << j << std::endl);
+					DM("        - considering " << j << std::endl);
 					if (j.latest_arrival() <= ts_min
 						&& &j != &reference_job
 					    && incomplete(s, j)
 					    && j.higher_priority_than(reference_job)) {
-						DM("\t\t\t\t " << j << " <<HP<< " << reference_job << std::endl);
+						DM("          => found one: " << j << " <<HP<< "
+						   << reference_job << std::endl);
 						return true;
 					}
 				}
+				DM("        => none found" << std::endl);
 				return false;
 			}
 
@@ -437,7 +440,7 @@ namespace NP {
 				Time at)
 			{
 				auto ts_min = s.earliest_finish_time();
-				DM("~~~ " << at << ": " << reference_job << std::endl);
+				DM("    ? " << __FUNCTION__ << " at " << at << ": " << reference_job << std::endl);
 				assert(at >= ts_min);
 
 				// first check anything already pending at ts_min
@@ -445,11 +448,12 @@ namespace NP {
 					return true;
 
 				// if not, check later releases
+				DM("      ? checking for later releases" << std::endl);
 				for (auto it = jobs_by_latest_arrival.lower_bound(ts_min);
 				     it != jobs_by_latest_arrival.end(); it++) {
 					const Job<Time>& j = *(it->second);
 
-					DM(":?: " << j << std::endl);
+					DM("      - considering " << j << std::endl);
 
 					// skip reference job
 					if (&j == &reference_job)
@@ -531,24 +535,24 @@ namespace NP {
 			bool is_eligible_successor(const State &s, const Job<Time> &j)
 			{
 				if (!incomplete(s, j)) {
-					DM("        * not incomplete" <<  std::endl);
+					DM("  --> already complete"  << std::endl);
 					return false;
 				}
 				if (!ready(s, j)) {
-					DM("        * not ready" <<  std::endl);
+					DM("  --> not ready"  << std::endl);
 					return false;
 				}
 				auto t_s = s.next_earliest_start_time(j);
 				if (!priority_eligible(s, j, t_s)) {
-					DM("        * not priority eligible" <<  std::endl);
+					DM("  --> not prio eligible"  << std::endl);
 					return false;
 				}
 				if (!potentially_next(s, j)) {
-					DM("        * not potentially next" <<  std::endl);
+					DM("  --> not potentially next" <<  std::endl);
 					return false;
 				}
 				if (!iip_eligible(s, j, t_s)) {
-					DM("        * not IIP eligible" << std::endl);
+					DM("  --> not IIP eligible" << std::endl);
 					return false;
 				}
 				return true;
@@ -657,10 +661,12 @@ namespace NP {
 				Time iip_latest_start =
 					iip.latest_start(j, t_s, s.get_scheduled_jobs());
 
-				DM("nest=" << s.next_earliest_start_time(j) << std::endl);
-				DM("other_certain_start=" << other_certain_start << std::endl);
+				DM("      nest = " << s.next_earliest_start_time(j) << std::endl);
+				DM("      other_certain_start = "
+				   << other_certain_start << std::endl);
 				// construct new state from s by scheduling j
 				const State& next = new_state(s, j, index_of(j), other_certain_start, iip_latest_start);
+				DM("      -----> S" << (states.end() - states.begin() + 1) << std::endl);
 				// update response times
 				update_finish_times(j, next.finish_range());
 				check_for_deadline_misses(s, next);
@@ -677,7 +683,11 @@ namespace NP {
 				while (not_done() && !aborted) {
 					const State& s = next_state();
 
-					DM("\nLooking at: S" << (todo[todo_idx].front() - states.begin() + 1) << " " << s << std::endl);
+					DM("\n==================================================="
+					   << std::endl);
+					DM("Looking at: S"
+					   << (todo[todo_idx].front() - states.begin() + 1)
+					   << " " << s << std::endl);
 
 					// Identify relevant interval for next job
 					// relevant job buckets
@@ -687,18 +697,22 @@ namespace NP {
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};
 
-					DM(" => " << next_range << std::endl);
+					DM("ts_min = " << ts_min << std::endl <<
+					   "latest_idle = " << latest_idle << std::endl <<
+					   "latest_finish = " <<s.latest_finish_time() << std::endl);
+					DM("=> next range = " << next_range << std::endl);
 
 					bool found_at_least_one = false;
 
 					// (1) first check jobs that can be already pending
+					DM("\n---\nChecking for already pending jobs:" << std::endl);
 					for (const Job<Time>& j : jobs_by_win.lookup(ts_min)) {
-						DM("    -?? " << j << std::endl);
+						DM("+ " << j << std::endl);
 						// if it is potentially active at ts_min...
 						if (j.earliest_arrival() <= ts_min) {
 							// if it can be scheduled next...
 							if (is_eligible_successor(s, j)) {
-								DM("        --> ok!"  << std::endl);
+								DM("  --> can be next "  << std::endl);
 								// create the relevant state and continue
 								schedule_naively(s, j);
 								found_at_least_one = true;
@@ -706,21 +720,24 @@ namespace NP {
 						}
 					}
 					// (2) check jobs that are released later in the interval
+					DM("---\nChecking for later-released jobs:" << std::endl);
 					for (auto it = jobs_by_earliest_arrival.upper_bound(ts_min);
 					     it != jobs_by_earliest_arrival.end(); it++) {
 						const Job<Time>& j = *it->second;
 						// stop looking once we've left the range of interest
-						DM("    -?? " << j << std::endl);
+						DM("+ " << j << std::endl);
 						if (!j.scheduling_window().intersects(next_range))
 							break;
 						// if it can be scheduled next...
 						if (is_eligible_successor(s, j)) {
-							DM("        --> OK!"  << std::endl);
+							DM("  --> can be next "  << std::endl);
 							// create the relevant state and continue
 							schedule_naively(s, j);
 							found_at_least_one = true;
 						}
 					}
+
+					DM("---\nDone iterating over all jobs." << std::endl);
 
 					// check for a dead end
 					if (!found_at_least_one &&
@@ -791,7 +808,11 @@ namespace NP {
 				while (not_done() && !aborted) {
 					const State& s = next_state();
 
-					DM("\nLooking at: S" << (todo[todo_idx].front() - states.begin()) << " " << s << std::endl);
+					DM("\n==================================================="
+					   << std::endl);
+					DM("Looking at: S"
+					   << (todo[todo_idx].front() - states.begin() + 1)
+					   << " " << s << std::endl);
 
 					// Identify relevant interval for next job
 					// relevant job buckets
@@ -801,50 +822,54 @@ namespace NP {
 					Interval<Time> next_range{ts_min,
 					    std::max(latest_idle, s.latest_finish_time())};
 
-					DM(" => " << next_range << std::endl);
+					DM("ts_min = " << ts_min << std::endl <<
+					   "latest_idle = " << latest_idle << std::endl <<
+					   "latest_finish = " <<s.latest_finish_time() << std::endl);
+					DM("=> next range = " << next_range << std::endl);
 
 					bool found_at_least_one = false;
 
 					// (1) first check jobs that can be already pending
+					DM("\n---\nChecking for already pending jobs:" << std::endl);
 					for (const Job<Time>& j : jobs_by_win.lookup(ts_min)) {
-						DM("    -?? " << j << std::endl);
+						DM("+ " << j << std::endl);
 						// if it is potentially active at ts_min...
 						if (j.earliest_arrival() <= ts_min) {
 							// if it can be scheduled next...
 							if (is_eligible_successor(s, j)) {
-								DM("        --> ok!"  << std::endl);
+								DM("  --> can be next "  << std::endl);
 								// create the relevant state and continue
 								schedule(s, j);
 								found_at_least_one = true;
 							}
 						} else {
-							DM("        * not pending" << std::endl);
+							DM("  --> is not pending" << std::endl);
 						}
 					}
 					// (2) check jobs that are released later in the interval
+					DM("---\nChecking for later-released jobs:" << std::endl);
 					for (auto it = jobs_by_earliest_arrival.upper_bound(ts_min);
 					     it != jobs_by_earliest_arrival.end(); it++) {
 						const Job<Time>& j = *it->second;
 						// stop looking once we've left the range of interest
-						DM("    -?? " << j << std::endl);
+						DM("+ " << j << std::endl);
 						if (!j.scheduling_window().intersects(next_range)) {
-							DM("        * not pending" << std::endl);
+							DM("  --> not released in next_range" << std::endl);
 							break;
 						}
 						// if it can be scheduled next...
 						if (is_eligible_successor(s, j)) {
-							DM("        --> OK!"  << std::endl);
+							DM("  --> can be next "  << std::endl);
 							// connect the relevant state and continue
 							schedule(s, j);
-							//new_state(schedule_naively(s, j));
 							found_at_least_one = true;
 						}
 					}
 
-					DM("Done." << std::endl);
+					DM("---\nDone iterating over all jobs." << std::endl);
 
 					// check for a dead end
-					if (!found_at_least_one &&
+					if (!found_at_least_one && early_exit &&
 					    s.get_scheduled_jobs().size() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
 						aborted = true;
@@ -862,7 +887,7 @@ namespace NP {
 			                                 const State_space<Time, IIP>& space)
 			{
 					std::map<const Schedule_state<Time>*, unsigned int> state_id;
-					unsigned int i = 0;
+					unsigned int i = 1;
 					out << "digraph {" << std::endl;
 					for (const Schedule_state<Time>& s : space.get_states()) {
 						state_id[&s] = i++;

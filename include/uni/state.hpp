@@ -51,9 +51,12 @@ namespace NP {
 			, scheduled_jobs{from.scheduled_jobs, idx}
 			, lookup_key{from.next_key(j)}
 			{
-				DM("cost: " << j.least_cost() << "--" << j.maximal_cost() <<  std::endl);
-				DM("Other: " << other_certain_start <<  std::endl);
-				DM("eft:" << finish_time.from() << " lft:" << finish_time.upto() << std::endl);
+				DM("      cost: " << j.least_cost() << "--" << j.maximal_cost()
+				   <<  std::endl);
+				DM("      Other: " << other_certain_start << std::endl);
+				DM("      eft: " << finish_time.from() << " lft: "
+				   << finish_time.upto() << std::endl);
+				DM("      ER: " << earliest_pending_release << std::endl);
 			}
 
 
