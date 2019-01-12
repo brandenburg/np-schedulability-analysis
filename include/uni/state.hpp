@@ -22,6 +22,7 @@ namespace NP {
 			private:
 
 			Interval<Time> finish_time;
+			Time earliest_pending_release;
 
 			Job_set scheduled_jobs;
 			hash_value_t lookup_key;
@@ -35,6 +36,7 @@ namespace NP {
 			Schedule_state()
 			: finish_time{0, 0}
 			, lookup_key{0}
+			, earliest_pending_release{0}
 			{
 			}
 
@@ -43,6 +45,7 @@ namespace NP {
 				const Schedule_state& from,
 				const Job<Time>& j,
 				std::size_t idx,
+				const Time next_earliest_release,
 				const Time other_certain_start,
 				const Time iip_latest_start)
 			: finish_time{from.next_earliest_finish_time(j),
@@ -50,6 +53,7 @@ namespace NP {
 			                                          iip_latest_start)}
 			, scheduled_jobs{from.scheduled_jobs, idx}
 			, lookup_key{from.next_key(j)}
+			, earliest_pending_release{next_earliest_release}
 			{
 				DM("      cost: " << j.least_cost() << "--" << j.maximal_cost()
 				   <<  std::endl);
@@ -68,6 +72,11 @@ namespace NP {
 			Time latest_finish_time() const
 			{
 				return finish_time.until();
+			}
+
+			Time earliest_job_release() const
+			{
+				return earliest_pending_release;
 			}
 
 			const Interval<Time>& finish_range() const

@@ -40,7 +40,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v1.earliest_finish_time() == doctest::Approx(0));
 		CHECK(v1.latest_finish_time() == doctest::Approx(0));
 
-		Uniproc::Schedule_state<dense_t> v2{v1, jobs[0], 0, inf, inf};
+		Uniproc::Schedule_state<dense_t> v2{v1, jobs[0], 0, 0, inf, inf};
 
 		DM("v1: " << v1 << std::endl);
 		DM("     ---[ " << jobs[0] << " --->" << std::endl);
@@ -49,7 +49,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v2.earliest_finish_time() == doctest::Approx(1));
 		CHECK(v2.latest_finish_time() == doctest::Approx(2));
 
-		Uniproc::Schedule_state<dense_t> v3{v2, jobs[6], 6, 10, inf};
+		Uniproc::Schedule_state<dense_t> v3{v2, jobs[6], 6, 0, 10, inf};
 
 		DM("     ---[ " << jobs[6] << " --->" << std::endl);
 		DM("v3: " << v3 << std::endl);
@@ -57,7 +57,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v3.earliest_finish_time() == doctest::Approx(8));
 		CHECK(v3.latest_finish_time() == doctest::Approx(10));
 
-		Uniproc::Schedule_state<dense_t> v4{v3, jobs[8], 8, 10, inf};
+		Uniproc::Schedule_state<dense_t> v4{v3, jobs[8], 8, 0, 10, inf};
 
 		DM("     ---[ " << jobs[8] << " --->" << std::endl);
 		DM("v4: " << v4 << std::endl);
@@ -65,7 +65,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v4.earliest_finish_time() == doctest::Approx(11));
 		CHECK(v4.latest_finish_time() == doctest::Approx(23));
 
-		Uniproc::Schedule_state<dense_t> v6{v4, jobs[1], 1, inf, inf};
+		Uniproc::Schedule_state<dense_t> v6{v4, jobs[1], 1, 0, inf, inf};
 
 		DM("     ---[ " << jobs[1] << " --->" << std::endl);
 		DM("v6: " << v6 << std::endl);
@@ -73,7 +73,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v6.earliest_finish_time() == doctest::Approx(12));
 		CHECK(v6.latest_finish_time() == doctest::Approx(25));
 
-		Uniproc::Schedule_state<dense_t> v8{v6, jobs[2], 2, inf, inf};
+		Uniproc::Schedule_state<dense_t> v8{v6, jobs[2], 2, 0, inf, inf};
 
 		DM("     ---[ " << jobs[2] << " --->" << std::endl);
 		DM("v8: " << v8 << std::endl);
@@ -84,7 +84,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 
 		DM("==========[ lower branch ]=========" << std::endl);
 
-		Uniproc::Schedule_state<dense_t> v5{v3, jobs[1], 1, inf, inf};
+		Uniproc::Schedule_state<dense_t> v5{v3, jobs[1], 1, 0, inf, inf};
 
 		DM("v3: " << v3 << std::endl);
 		DM("    ---[ " << jobs[1] << " --->" << std::endl);
@@ -93,7 +93,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v5.earliest_finish_time() == doctest::Approx(11));
 		CHECK(v5.latest_finish_time() == doctest::Approx(12));
 
-		Uniproc::Schedule_state<dense_t> v7{v5, jobs[8], 8, inf, inf};
+		Uniproc::Schedule_state<dense_t> v7{v5, jobs[8], 8, 0, inf, inf};
 
 		DM("    ---[ " << jobs[8] << " --->" << std::endl);
 		DM("v7: " << v7 << std::endl);
@@ -101,7 +101,7 @@ TEST_CASE("[dense time] Example in Figure 1(a,b)") {
 		CHECK(v7.earliest_finish_time() == doctest::Approx(14));
 		CHECK(v7.latest_finish_time() == doctest::Approx(25));
 
-		Uniproc::Schedule_state<dense_t> v9{v7, jobs[2], 2, inf, inf};
+		Uniproc::Schedule_state<dense_t> v9{v7, jobs[2], 2, 0, inf, inf};
 
 		DM("    ---[ " << jobs[2] << " --->" << std::endl);
 		DM("v9: " << v9 << std::endl);

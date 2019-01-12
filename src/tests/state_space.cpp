@@ -18,7 +18,7 @@ TEST_CASE("[NP state space] Find all next jobs") {
 	SUBCASE("State evolution") {
 		Uniproc::Schedule_state<dtime_t> v1;
 
-		Uniproc::Schedule_state<dtime_t> v2{v1, jobs[1], 1, inf, inf};
+		Uniproc::Schedule_state<dtime_t> v2{v1, jobs[1], 1, 0, inf, inf};
 
 		CHECK(v2.earliest_finish_time() == 12);
 		CHECK(v2.latest_finish_time() == 12);
@@ -291,25 +291,29 @@ TEST_CASE("[NP state space] don't skip over deadline-missing jobs") {
 			jobs, 0, 1000, Precedence_constraints(), 1, 0, false);
 		CHECK(!space.is_schedulable());
 
-		CHECK(space.number_of_edges() == 4);
-		CHECK(space.number_of_states() == 5);
+		CHECK(space.number_of_edges() == 5);
+		CHECK(space.number_of_states() == 6);
 
 		// make sure the analysis continued after the deadline miss
-		auto ftimes = space.get_finish_times(jobs[1]);
+		auto ftimes = space.get_finish_times(jobs[0]);
+		CHECK(ftimes.min() == 1202);
+		CHECK(ftimes.max() == 1250);
+
+		ftimes = space.get_finish_times(jobs[1]);
 		CHECK(ftimes.min() == 1200);
 		CHECK(ftimes.max() == 1200);
 
 		ftimes = space.get_finish_times(jobs[2]);
-		CHECK(ftimes.min() == 1202);
-		CHECK(ftimes.max() == 1250);
-
-		ftimes = space.get_finish_times(jobs[3]);
 		CHECK(ftimes.min() == 1204);
 		CHECK(ftimes.max() == 1300);
 
-		ftimes = space.get_finish_times(jobs[4]);
+		ftimes = space.get_finish_times(jobs[3]);
 		CHECK(ftimes.min() == 1206);
 		CHECK(ftimes.max() == 1350);
+
+		ftimes = space.get_finish_times(jobs[4]);
+		CHECK(ftimes.min() == 1208);
+		CHECK(ftimes.max() == 1400);
 	}
 }
 
@@ -325,24 +329,28 @@ TEST_CASE("[NP state space] explore all branches with deadline-missing jobs") {
 		jobs, 0, 1000, Precedence_constraints(), 1, 0, false);
 	CHECK(!space.is_schedulable());
 
-	CHECK(space.number_of_edges() ==  9);
-	CHECK(space.number_of_states() == 10);
+	CHECK(space.number_of_edges() ==  7);
+	CHECK(space.number_of_states() == 7);
 
 	// make sure the analysis continued after the deadline miss
-	auto ftimes = space.get_finish_times(jobs[1]);
+	auto ftimes = space.get_finish_times(jobs[0]);
+	CHECK(ftimes.min() ==  102);
+	CHECK(ftimes.max() == 1349);
+
+	ftimes = space.get_finish_times(jobs[1]);
 	CHECK(ftimes.min() == 1200);
 	CHECK(ftimes.max() == 1350);
 
 	ftimes = space.get_finish_times(jobs[2]);
-	CHECK(ftimes.min() == 1202);
+	CHECK(ftimes.min() == 1204);
 	CHECK(ftimes.max() == 1400);
 
 	ftimes = space.get_finish_times(jobs[3]);
-	CHECK(ftimes.min() == 1204);
+	CHECK(ftimes.min() == 1206);
 	CHECK(ftimes.max() == 1450);
 
 	ftimes = space.get_finish_times(jobs[4]);
-	CHECK(ftimes.min() == 1206);
+	CHECK(ftimes.min() == 1208);
 	CHECK(ftimes.max() == 1500);
 }
 
