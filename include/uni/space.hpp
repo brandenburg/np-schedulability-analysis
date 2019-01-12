@@ -584,12 +584,19 @@ namespace NP {
 				return *s_ref;
 			}
 
-			const State& next_state()
+			bool not_done()
 			{
+				// if the curent queue is empty, move on to the next
 				if (todo[todo_idx].empty()) {
 					current_job_count++;
 					todo_idx = current_job_count % num_todo_queues;
-				}
+					return !todo[todo_idx].empty();
+				} else
+					return true;
+			}
+
+			const State& next_state()
+			{
 				auto s = todo[todo_idx].front();
 				return *s;
 			}
@@ -644,11 +651,6 @@ namespace NP {
 				assert(states.begin() == s);
 				states.pop_front();
 #endif
-			}
-
-			bool not_done()
-			{
-				return current_job_count < jobs.size() || !todo[todo_idx].empty();
 			}
 
 			// naive: no state merging
@@ -743,7 +745,9 @@ namespace NP {
 					if (!found_at_least_one &&
 					    s.get_scheduled_jobs().size() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
-						aborted = true;
+						observed_deadline_miss = true;
+						if (early_exit)
+							aborted = true;
 					}
 
 					done_with_current_state();
@@ -869,11 +873,13 @@ namespace NP {
 					DM("---\nDone iterating over all jobs." << std::endl);
 
 					// check for a dead end
-					if (!found_at_least_one && early_exit &&
+					if (!found_at_least_one &&
 					    s.get_scheduled_jobs().size() != jobs.size()) {
 						// out of options and we didn't schedule all jobs
-						aborted = true;
-						DM(":: Didn't find any possible successors. Aborting." << std::endl);
+						observed_deadline_miss = true;
+						if (early_exit)
+							aborted = true;
+						DM(":: Didn't find any possible successors." << std::endl);
 					}
 
 					done_with_current_state();
