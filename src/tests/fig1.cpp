@@ -128,8 +128,10 @@ TEST_CASE("Example in Figure 1(a,b)") {
 
 	SUBCASE("Exploration after deadline miss") {
 		// explore with early_exit = false
-		auto space = Uniproc::State_space<dtime_t>
-			::explore(jobs, 0, 1000, Precedence_constraints(), 1, 0, false);
+		Scheduling_problem<dtime_t> prob{jobs};
+		Analysis_options opts;
+		opts.early_exit = false;
+		auto space = Uniproc::State_space<dtime_t>::explore(prob, opts);
 		CHECK(!space.is_schedulable());
 
 		// make sure the analysis continued after the deadline miss

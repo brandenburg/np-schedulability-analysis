@@ -56,29 +56,28 @@ TEST_CASE("[global-prec] taskset-1") {
 	auto in = std::istringstream(ts1_jobs);
 	auto jobs = NP::parse_file<dtime_t>(in);
 
-	NP::validate_prec_refs<dtime_t>(dag, jobs);
+	NP::Scheduling_problem<dtime_t> prob{jobs, dag};
+	NP::Analysis_options opts;
 
-	auto num_cpus = 2;
-
-	auto nspace2 = NP::Global::State_space<dtime_t>::explore_naively(jobs,
-		0, 1000, dag, num_cpus);
+	prob.num_processors = 2;
+	opts.be_naive = true;
+	auto nspace2 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK_FALSE(nspace2.is_schedulable());
 
-	auto space2 = NP::Global::State_space<dtime_t>::explore(jobs,
-		0, 1000, dag, num_cpus);
+	opts.be_naive = false;
+	auto space2 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK_FALSE(space2.is_schedulable());
 
-	num_cpus = 3;
-
-	auto nspace3 = NP::Global::State_space<dtime_t>::explore_naively(jobs,
-		0, 1000, dag, num_cpus);
+	prob.num_processors = 3;
+	opts.be_naive = true;
+	auto nspace3 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK(nspace3.is_schedulable());
 
-	auto space3 = NP::Global::State_space<dtime_t>::explore(jobs,
-		0, 1000, dag, num_cpus);
+	opts.be_naive = false;
+	auto space3 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK(space3.is_schedulable());
 
@@ -95,17 +94,17 @@ TEST_CASE("[global-prec] taskset-2") {
 	auto in = std::istringstream(ts2_jobs);
 	auto jobs = NP::parse_file<dtime_t>(in);
 
-	NP::validate_prec_refs<dtime_t>(dag, jobs);
+	NP::Scheduling_problem<dtime_t> prob{jobs, dag};
+	NP::Analysis_options opts;
 
-	auto num_cpus = 2;
-
-	auto nspace2 = NP::Global::State_space<dtime_t>::explore_naively(jobs,
-		0, 1000, dag, num_cpus);
+	prob.num_processors = 2;
+	opts.be_naive = true;
+	auto nspace2 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK(nspace2.is_schedulable());
 
-	auto space2 = NP::Global::State_space<dtime_t>::explore(jobs,
-		0, 1000, dag, num_cpus);
+	opts.be_naive = false;
+	auto space2 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK(space2.is_schedulable());
 
@@ -115,15 +114,14 @@ TEST_CASE("[global-prec] taskset-2") {
 			CHECK(nspace2.get_finish_times(j).from() != 0);
 	}
 
-	num_cpus = 3;
-
-	auto nspace3 = NP::Global::State_space<dtime_t>::explore_naively(jobs,
-		0, 1000, dag, num_cpus);
+	prob.num_processors = 3;
+	opts.be_naive = true;
+	auto nspace3 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK(nspace3.is_schedulable());
 
-	auto space3 = NP::Global::State_space<dtime_t>::explore(jobs,
-		0, 1000, dag, num_cpus);
+	opts.be_naive = false;
+	auto space3 = NP::Global::State_space<dtime_t>::explore(prob, opts);
 
 	CHECK(space3.is_schedulable());
 

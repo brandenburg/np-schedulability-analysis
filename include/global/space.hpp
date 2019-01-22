@@ -20,8 +20,7 @@
 #include "tbb/parallel_for.h"
 #endif
 
-#include "jobs.hpp"
-#include "precedence.hpp"
+#include "problem.hpp"
 #include "clock.hpp"
 
 #include "global/state.hpp"
@@ -34,47 +33,46 @@ namespace NP {
 		{
 			public:
 
-			typedef typename Job<Time>::Job_set Workload;
+			typedef Scheduling_problem<Time> Problem;
+			typedef typename Scheduling_problem<Time>::Workload Workload;
 			typedef Schedule_state<Time> State;
 
-			static State_space explore_naively(
-					const Workload& jobs,
-					double timeout = 0,
-					std::size_t num_buckets = 1000,
-					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1,
-					unsigned int max_depth = 0,
-					bool early_exit = true)
-			{
-				// doesn't yet support exploration after deadline miss
-				assert(early_exit);
-
-				auto s = State_space(jobs, dag, num_processors, timeout,
-				                     max_depth, num_buckets);
-				s.cpu_time.start();
-				s.explore_naively();
-				s.cpu_time.stop();
-				return s;
-			}
-
 			static State_space explore(
-					const Workload& jobs,
-					double timeout = 0,
-					std::size_t num_buckets = 1000,
-					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1,
-					unsigned int max_depth = 0,
-					bool early_exit = true)
+					const Problem& prob,
+					const Analysis_options& opts)
 			{
 				// doesn't yet support exploration after deadline miss
-				assert(early_exit);
+				assert(opts.early_exit);
 
-				auto s = State_space(jobs, dag, num_processors, timeout,
-				                     max_depth, num_buckets);
+				auto s = State_space(prob.jobs, prob.dag, prob.num_processors, opts.timeout,
+				                     opts.max_depth, opts.num_buckets);
+				s.be_naive = opts.be_naive;
 				s.cpu_time.start();
 				s.explore();
 				s.cpu_time.stop();
 				return s;
+
+			}
+
+			// convenience interface for tests
+			static State_space explore_naively(
+				const Workload& jobs,
+				unsigned int num_cpus)
+			{
+				Problem p{jobs, num_cpus};
+				Analysis_options o;
+				o.be_naive = true;
+				return explore(p, o);
+			}
+
+			// convenience interface for tests
+			static State_space explore(
+				const Workload& jobs,
+				unsigned int num_cpus)
+			{
+				Problem p{jobs, num_cpus};
+				Analysis_options o;
+				return explore(p, o);
 			}
 
 			Interval<Time> get_finish_times(const Job<Time>& j) const

@@ -15,6 +15,7 @@
 
 #endif
 
+#include "problem.hpp"
 #include "uni/space.hpp"
 #include "global/space.hpp"
 #include "io.hpp"
@@ -66,17 +67,24 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 		num_worker_threads ? num_worker_threads : tbb::task_scheduler_init::automatic);
 #endif
 
-	auto jobs = NP::parse_file<Time>(in);
-	auto dag = NP::parse_dag_file(dag_in);
+	// Parse input files and create NP scheduling problem description
+	NP::Scheduling_problem<Time> problem{
+		NP::parse_file<Time>(in),
+		NP::parse_dag_file(dag_in),
+		num_processors};
 
-	NP::validate_prec_refs<Time>(dag, jobs);
+	// Set common analysis options
+	NP::Analysis_options opts;
+	opts.timeout = timeout;
+	opts.max_depth = max_depth;
+	opts.early_exit = !continue_after_dl_miss;
+	opts.num_buckets = problem.jobs.size();
+	opts.be_naive = want_naive;
 
-	auto space = want_naive ?
-		Space::explore_naively(jobs, timeout, jobs.size(), dag, num_processors,
-		                       max_depth, !continue_after_dl_miss)
-		: Space::explore(jobs, timeout, jobs.size(), dag, num_processors,
-		                 max_depth, !continue_after_dl_miss);
+	// Actually call the analysis engine
+	auto space = Space::explore(problem, opts);
 
+	// Extract the analysis results
 	auto graph = std::ostringstream();
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 	if (want_dot_graph)
@@ -87,7 +95,7 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 
 	if (want_rta_file) {
 		rta << "Task ID, Job ID, BCCT, WCCT, BCRT, WCRT" << std::endl;
-		for (const auto& j : jobs) {
+		for (const auto& j : problem.jobs) {
 			Interval<Time> finish = space.get_finish_times(j);
 			rta << j.get_task_id() << ", "
 			    << j.get_job_id() << ", "
@@ -107,7 +115,7 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 		space.number_of_states(),
 		space.number_of_edges(),
 		space.max_exploration_front_width(),
-		jobs.size(),
+		problem.jobs.size(),
 		space.get_cpu_time(),
 		graph.str(),
 		rta.str()

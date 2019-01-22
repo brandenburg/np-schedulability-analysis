@@ -68,27 +68,24 @@ TEST_CASE("[global] RTSS17-Fig-1a") {
 	auto jobs = NP::parse_file<dtime_t>(in);
 
 	auto num_cpus = 2;
-	auto dag = NP::Precedence_constraints();
 
 	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs,
-		0, 1000, dag, num_cpus);
+		num_cpus);
 
 	CHECK(nspace.is_schedulable());
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs,
-		0, 1000, dag, num_cpus);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, num_cpus);
 
 	CHECK(space.is_schedulable());
 
 
 	num_cpus = 1;
 	auto nspace2 = NP::Global::State_space<dtime_t>::explore_naively(jobs,
-		0, 1000, dag, num_cpus);
+		num_cpus);
 
 	CHECK_FALSE(nspace2.is_schedulable());
 
-	auto space2 = NP::Global::State_space<dtime_t>::explore(jobs,
-		0, 1000, dag, num_cpus);
+	auto space2 = NP::Global::State_space<dtime_t>::explore(jobs, num_cpus);
 
 	CHECK_FALSE(space2.is_schedulable());
 }
@@ -107,15 +104,14 @@ TEST_CASE("[global] ECRTS18-Fig-1") {
 	auto jobs = NP::parse_file<dtime_t>(in);
 
 	auto num_cpus = 2;
-	auto dag = NP::Precedence_constraints();
 
 	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs,
-		0, 1000, dag, num_cpus);
+		num_cpus);
 
 	CHECK_FALSE(nspace.is_schedulable());
 
 	auto space = NP::Global::State_space<dtime_t>::explore(jobs,
-		0, 1000, dag, num_cpus);
+		num_cpus);
 
 	CHECK_FALSE(space.is_schedulable());
 }
@@ -130,7 +126,7 @@ TEST_CASE("[global] Find all next jobs") {
 	};
 
 	SUBCASE("Naive exploration") {
-		auto space = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+		auto space = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 		CHECK(space.is_schedulable());
 
 		CHECK(space.get_finish_times(jobs[0]).from()  == 3);
@@ -144,7 +140,7 @@ TEST_CASE("[global] Find all next jobs") {
 	}
 
 	SUBCASE("Exploration with merging") {
-		auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+		auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 		CHECK(space.is_schedulable());
 
 		CHECK(space.get_finish_times(jobs[0]).from()  == 3);
@@ -166,7 +162,7 @@ TEST_CASE("[global] Consider large enough interval") {
 		NP::Job<dtime_t>{3, I(10, 10),  I(5, 5),  100, 1},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  3);
@@ -178,7 +174,7 @@ TEST_CASE("[global] Consider large enough interval") {
 	CHECK(nspace.get_finish_times(jobs[2]).from()  == 15);
 	CHECK(nspace.get_finish_times(jobs[2]).until() == 19);
 
-	auto space = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(space.is_schedulable());
 
 	CHECK(space.get_finish_times(jobs[0]).from()  ==  3);
@@ -197,7 +193,7 @@ TEST_CASE("[global] Respect priorities") {
 		NP::Job<dtime_t>{2, I( 0,  0),  I(5, 5),  100, 1},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  8);
@@ -206,7 +202,7 @@ TEST_CASE("[global] Respect priorities") {
 	CHECK(nspace.get_finish_times(jobs[1]).from()  ==  5);
 	CHECK(nspace.get_finish_times(jobs[1]).until() ==  5);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 	CHECK(space.is_schedulable());
 
 	CHECK(space.get_finish_times(jobs[0]).from()  ==  8);
@@ -222,7 +218,7 @@ TEST_CASE("[global] Respect jitter") {
 		NP::Job<dtime_t>{2, I( 0,  1),  I(5, 5),  100, 1},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  3);
@@ -231,7 +227,7 @@ TEST_CASE("[global] Respect jitter") {
 	CHECK(nspace.get_finish_times(jobs[1]).from()  ==  5);
 	CHECK(nspace.get_finish_times(jobs[1]).until() == 15);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 	CHECK(space.is_schedulable());
 
 	CHECK(space.get_finish_times(jobs[0]).from()  ==  3);
@@ -248,7 +244,7 @@ TEST_CASE("[global] Be eager") {
 		NP::Job<dtime_t>{3, I(10, 10),  I(5,  5),  100, 1},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  1);
@@ -260,7 +256,7 @@ TEST_CASE("[global] Be eager") {
 	CHECK(nspace.get_finish_times(jobs[2]).from()  ==  15);
 	CHECK(nspace.get_finish_times(jobs[2]).until() ==  30);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 	CHECK(space.is_schedulable());
 
 	CHECK(space.get_finish_times(jobs[0]).from()  ==  1);
@@ -281,7 +277,7 @@ TEST_CASE("[global] Be eager, with short deadline") {
 		NP::Job<dtime_t>{3, I(30, 30),  I(5,  5),  100, 1},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  1);
@@ -293,7 +289,7 @@ TEST_CASE("[global] Be eager, with short deadline") {
 	CHECK(nspace.get_finish_times(jobs[2]).from()  ==  35);
 	CHECK(nspace.get_finish_times(jobs[2]).until() ==  35);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 	CHECK(space.is_schedulable());
 
 	CHECK(space.get_finish_times(jobs[0]).from()  ==  1);
@@ -314,7 +310,7 @@ TEST_CASE("[global] Treat equal-priority jobs correctly") {
 		NP::Job<dtime_t>{3, I( 1000,  1010),  I( 2,    50),  3000, 1},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
@@ -326,7 +322,7 @@ TEST_CASE("[global] Treat equal-priority jobs correctly") {
 	CHECK(nspace.get_finish_times(jobs[2]).from()  ==  1002);
 	CHECK(nspace.get_finish_times(jobs[2]).until() ==  1310);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 	CHECK(space.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
@@ -345,7 +341,7 @@ TEST_CASE("[global] Equal-priority simultaneous arrivals") {
 		NP::Job<dtime_t>{2, I(    0,    10),  I(100,   150),  2000, 2000, 2},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
@@ -354,7 +350,7 @@ TEST_CASE("[global] Equal-priority simultaneous arrivals") {
 	CHECK(nspace.get_finish_times(jobs[1]).from()  ==  100);
 	CHECK(nspace.get_finish_times(jobs[1]).until() ==  10 + 50 + 150);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 	CHECK(space.is_schedulable());
 
 	CHECK(nspace.get_finish_times(jobs[0]).from()  ==  2);
@@ -373,13 +369,13 @@ TEST_CASE("[global] don't skip over deadline-missing jobs") {
 		NP::Job<dtime_t>{5, I(  200,   250),  I( 2,    50),    6000, 5},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs);
+	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 1);
 	CHECK(!nspace.is_schedulable());
 
 	CHECK(nspace.number_of_edges() == 2);
 	CHECK(nspace.number_of_states() == 3);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs);
+	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 1);
 	CHECK(!space.is_schedulable());
 
 	CHECK(space.number_of_edges() == 2);
@@ -393,13 +389,21 @@ TEST_CASE("[global] explore across bucket boundaries") {
 		NP::Job<dtime_t>{3, I( 6000,  6000),  I(   2,    2),  10000, 3},
 	};
 
-	auto nspace = NP::Global::State_space<dtime_t>::explore_naively(jobs, 2);
+	NP::Scheduling_problem<dtime_t> prob{jobs};
+	NP::Analysis_options opts;
+	opts.num_buckets = 2;
+
+	opts.be_naive = true;
+	auto nspace = NP::Global::State_space<dtime_t>::explore(prob, opts);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.number_of_edges() == 3);
 
-	auto space = NP::Global::State_space<dtime_t>::explore(jobs, 2);
+	opts.be_naive = false;
+	auto space = NP::Global::State_space<dtime_t>::explore(prob, opts);
 	CHECK(space.is_schedulable());
+
+	//std::cout << space << std::endl;
 
 	CHECK(space.number_of_edges() == 3);
 }

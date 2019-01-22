@@ -287,31 +287,34 @@ TEST_CASE("[NP state space] don't skip over deadline-missing jobs") {
 	}
 
 	SUBCASE("Exploration after deadline miss") {
-		auto space = Uniproc::State_space<dtime_t>::explore(
-			jobs, 0, 1000, Precedence_constraints(), 1, 0, false);
+		Scheduling_problem<dtime_t> prob{jobs};
+		Analysis_options opts;
+		opts.early_exit = false;
+
+		auto space = Uniproc::State_space<dtime_t>::explore(prob, opts);
 		CHECK(!space.is_schedulable());
 
 		CHECK(space.number_of_edges() == 5);
 		CHECK(space.number_of_states() == 6);
 
 		// make sure the analysis continued after the deadline miss
-		auto ftimes = space.get_finish_times(jobs[0]);
+		auto ftimes = space.get_finish_times(prob.jobs[0]);
 		CHECK(ftimes.min() == 1202);
 		CHECK(ftimes.max() == 1250);
 
-		ftimes = space.get_finish_times(jobs[1]);
+		ftimes = space.get_finish_times(prob.jobs[1]);
 		CHECK(ftimes.min() == 1200);
 		CHECK(ftimes.max() == 1200);
 
-		ftimes = space.get_finish_times(jobs[2]);
+		ftimes = space.get_finish_times(prob.jobs[2]);
 		CHECK(ftimes.min() == 1204);
 		CHECK(ftimes.max() == 1300);
 
-		ftimes = space.get_finish_times(jobs[3]);
+		ftimes = space.get_finish_times(prob.jobs[3]);
 		CHECK(ftimes.min() == 1206);
 		CHECK(ftimes.max() == 1350);
 
-		ftimes = space.get_finish_times(jobs[4]);
+		ftimes = space.get_finish_times(prob.jobs[4]);
 		CHECK(ftimes.min() == 1208);
 		CHECK(ftimes.max() == 1400);
 	}
@@ -325,31 +328,34 @@ TEST_CASE("[NP state space] explore all branches with deadline-missing jobs") {
 		Job<dtime_t>{4, I(  200,   250),  I( 2,    50),    6000, 4},
 		Job<dtime_t>{5, I(  200,   250),  I( 2,    50),    6000, 5},
 	};
-	auto space = Uniproc::State_space<dtime_t>::explore(
-		jobs, 0, 1000, Precedence_constraints(), 1, 0, false);
+	Scheduling_problem<dtime_t> prob{jobs};
+	Analysis_options opts;
+	opts.early_exit = false;
+
+	auto space = Uniproc::State_space<dtime_t>::explore(prob, opts);
 	CHECK(!space.is_schedulable());
 
 	CHECK(space.number_of_edges() ==  7);
 	CHECK(space.number_of_states() == 7);
 
 	// make sure the analysis continued after the deadline miss
-	auto ftimes = space.get_finish_times(jobs[0]);
+	auto ftimes = space.get_finish_times(prob.jobs[0]);
 	CHECK(ftimes.min() ==  102);
 	CHECK(ftimes.max() == 1349);
 
-	ftimes = space.get_finish_times(jobs[1]);
+	ftimes = space.get_finish_times(prob.jobs[1]);
 	CHECK(ftimes.min() == 1200);
 	CHECK(ftimes.max() == 1350);
 
-	ftimes = space.get_finish_times(jobs[2]);
+	ftimes = space.get_finish_times(prob.jobs[2]);
 	CHECK(ftimes.min() == 1204);
 	CHECK(ftimes.max() == 1400);
 
-	ftimes = space.get_finish_times(jobs[3]);
+	ftimes = space.get_finish_times(prob.jobs[3]);
 	CHECK(ftimes.min() == 1206);
 	CHECK(ftimes.max() == 1450);
 
-	ftimes = space.get_finish_times(jobs[4]);
+	ftimes = space.get_finish_times(prob.jobs[4]);
 	CHECK(ftimes.min() == 1208);
 	CHECK(ftimes.max() == 1500);
 }
@@ -361,12 +367,19 @@ TEST_CASE("[NP state space] explore across bucket boundaries") {
 		Job<dtime_t>{3, I( 6000,  6000),  I(   2,    2),  10000, 3},
 	};
 
-	auto nspace = Uniproc::State_space<dtime_t>::explore_naively(jobs, 2);
+	Scheduling_problem<dtime_t> prob{jobs};
+	Analysis_options opts;
+	opts.num_buckets = 2;
+
+
+	opts.be_naive = true;
+	auto nspace = Uniproc::State_space<dtime_t>::explore(prob, opts);
 	CHECK(nspace.is_schedulable());
 
 	CHECK(nspace.number_of_edges() == 3);
 
-	auto space = Uniproc::State_space<dtime_t>::explore(jobs, 2);
+	opts.be_naive = false;
+	auto space = Uniproc::State_space<dtime_t>::explore(prob, opts);
 	CHECK(space.is_schedulable());
 
 	CHECK(space.number_of_edges() == 3);

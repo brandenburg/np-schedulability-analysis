@@ -14,6 +14,7 @@
 #include <cassert>
 
 #include "config.h"
+#include "problem.hpp"
 #include "jobs.hpp"
 #include "precedence.hpp"
 #include "clock.hpp"
@@ -30,47 +31,44 @@ namespace NP {
 		{
 			public:
 
-			typedef typename Job<Time>::Job_set Workload;
+			typedef Scheduling_problem<Time> Problem;
+			typedef typename Scheduling_problem<Time>::Workload Workload;
 			typedef Schedule_state<Time> State;
 
-			static State_space explore_naively(
-					const Workload& jobs,
-					double timeout = 0,
-					std::size_t num_buckets = 1000,
-					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1,
-					unsigned int max_depth = 0,
-					bool early_exit = true)
+			static State_space explore(
+					const Problem& prob,
+					const Analysis_options& opts)
 			{
 				// this is a uniprocessor analysis
-				assert(num_processors == 1);
+				assert(prob.num_processors == 1);
 
-				auto s = State_space(jobs, dag, timeout, max_depth, num_buckets,
-				                     early_exit);
+				auto s = State_space(prob.jobs, prob.dag,
+				                     opts.timeout, opts.max_depth,
+				                     opts.num_buckets, opts.early_exit);
 				s.cpu_time.start();
-				s.explore_naively();
+				if (opts.be_naive)
+					s.explore_naively();
+				else
+					s.explore();
 				s.cpu_time.stop();
 				return s;
 			}
 
-			static State_space explore(
-					const Workload& jobs,
-					double timeout = 0,
-					std::size_t num_buckets = 1000,
-					const Precedence_constraints& dag = Precedence_constraints(),
-					unsigned int num_processors = 1,
-					unsigned int max_depth = 0,
-					bool early_exit = true)
+			// convenience interface for tests
+			static State_space explore_naively(const Workload& jobs)
 			{
-				// this is a uniprocessor analysis
-				assert(num_processors == 1);
+				Problem p{jobs};
+				Analysis_options o;
+				o.be_naive = true;
+				return explore(p, o);
+			}
 
-				auto s = State_space(jobs, dag, timeout, max_depth,
-				                     num_buckets, early_exit);
-				s.cpu_time.start();
-				s.explore();
-				s.cpu_time.stop();
-				return s;
+			// convenience interface for tests
+			static State_space explore(const Workload& jobs)
+			{
+				Problem p{jobs};
+				Analysis_options o;
+				return explore(p, o);
 			}
 
 			Interval<Time> get_finish_times(const Job<Time>& j) const
