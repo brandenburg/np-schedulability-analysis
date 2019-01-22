@@ -79,7 +79,7 @@ namespace NP {
 
 			Interval<Time> get_finish_times(const Job<Time>& j) const
 			{
-				auto rbounds = rta.find(&j);
+				auto rbounds = rta.find(j.get_id());
 				if (rbounds == rta.end()) {
 					return Interval<Time>{0, Time_model::constants<Time>::infinity()};
 				} else {
@@ -200,7 +200,7 @@ namespace NP {
 
 			typedef Interval_lookup_table<Time, Job<Time>, Job<Time>::scheduling_window> Jobs_lut;
 
-			typedef std::unordered_map<const Job<Time>*, Interval<Time> > Response_times;
+			typedef std::unordered_map<JobID, Interval<Time> > Response_times;
 
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 			std::deque<Edge> edges;
@@ -310,20 +310,24 @@ namespace NP {
 				return dl;
 			}
 
-			void update_finish_times(
-				Response_times& r, const Job<Time>* j, Interval<Time> range)
+			void update_finish_times(Response_times& r, const JobID& id,
+			                         Interval<Time> range)
 			{
-				auto rbounds = r.find(j);
+				auto rbounds = r.find(id);
 				if (rbounds == r.end()) {
-					r.emplace(j, range);
-					if (j->exceeds_deadline(range.upto()))
-						aborted = true;
+					r.emplace(id, range);
 				} else {
 					rbounds->second |= range;
-					if (j->exceeds_deadline(rbounds->second.upto()))
-						aborted = true;
 				}
-				DM("RTA " << j->get_job_id() << ": " << r.find(j)->second << std::endl);
+				DM("RTA " << id << ": " << r.find(id)->second << std::endl);
+			}
+
+			void update_finish_times(
+				Response_times& r, const Job<Time>& j, Interval<Time> range)
+			{
+				update_finish_times(r, j.get_id(), range);
+				if (j.exceeds_deadline(range.upto()))
+					aborted = true;
 			}
 
 			void update_finish_times(const Job<Time>& j, Interval<Time> range)
@@ -334,7 +338,7 @@ namespace NP {
 #else
 					rta;
 #endif
-				update_finish_times(r, &j, range);
+				update_finish_times(r, j, range);
 			}
 
 

@@ -75,7 +75,7 @@ namespace NP {
 
 			Interval<Time> get_finish_times(const Job<Time>& j) const
 			{
-				auto rbounds = rta.find(&j);
+				auto rbounds = rta.find(j.get_id());
 				if (rbounds == rta.end()) {
 					return Interval<Time>{0, Time_model::constants<Time>::infinity()};
 				} else {
@@ -183,7 +183,7 @@ namespace NP {
 
 			typedef Interval_lookup_table<Time, Job<Time>, Job<Time>::scheduling_window> Jobs_lut;
 
-			typedef std::unordered_map<const Job<Time>*, Interval<Time> > Response_times;
+			typedef std::unordered_map<JobID, Interval<Time> > Response_times;
 
 			typedef std::vector<std::size_t> Job_precedence_set;
 
@@ -270,9 +270,9 @@ namespace NP {
 
 			void update_finish_times(const Job<Time>& j, Interval<Time> range)
 			{
-				auto rbounds = rta.find(&j);
+				auto rbounds = rta.find(j.get_id());
 				if (rbounds == rta.end()) {
-					rta.emplace(&j, range);
+					rta.emplace(j.get_id(), range);
 					if (j.exceeds_deadline(range.upto()))
 						observed_deadline_miss = true;
 				} else {
@@ -281,7 +281,7 @@ namespace NP {
 						observed_deadline_miss = true;
 				}
 				DM("      New finish time range for " << j
-				   << ": " << rta.find(&j)->second << std::endl);
+				   << ": " << rta.find(j.get_id())->second << std::endl);
 
 				if (early_exit && observed_deadline_miss)
 					aborted = true;
