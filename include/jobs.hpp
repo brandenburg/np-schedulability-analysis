@@ -118,6 +118,11 @@ namespace NP {
 			          Time_model::constants<Time>::deadline_miss_tolerance();
 		}
 
+		JobID get_id() const
+		{
+			return id;
+		}
+
 		unsigned long get_job_id() const
 		{
 			return id.job;
@@ -224,12 +229,22 @@ namespace NP {
 
 namespace std {
 	template<class T> struct hash<NP::Job<T>>
-    {
+	{
 		std::size_t operator()(NP::Job<T> const& j) const
-        {
-            return j.get_key();
-        }
-    };
+		{
+			return j.get_key();
+		}
+	};
+
+	template<> struct hash<NP::JobID>
+	{
+		std::size_t operator()(NP::JobID const& id) const
+		{
+			hash<unsigned long> h;
+			return (h(id.job) << 4) ^ h(id.task);
+		}
+
+	};
 }
 
 #endif
