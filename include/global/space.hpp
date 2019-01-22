@@ -323,7 +323,7 @@ namespace NP {
 					if (j->exceeds_deadline(rbounds->second.upto()))
 						aborted = true;
 				}
-				DM("RTA " << j->get_id() << ": " << r.find(j)->second << std::endl);
+				DM("RTA " << j->get_job_id() << ": " << r.find(j)->second << std::endl);
 			}
 
 			void update_finish_times(const Job<Time>& j, Interval<Time> range)
@@ -920,7 +920,7 @@ namespace NP {
 						    << "S" << state_id[e.target]
 						    << "[label=\""
 						    << "T" << e.scheduled->get_task_id()
-						    << " J" << e.scheduled->get_id()
+						    << " J" << e.scheduled->get_job_id()
 						    << "\\nDL=" << e.scheduled->get_deadline()
 						    << "\\nES=" << e.earliest_start_time()
  						    << "\\nLS=" << e.latest_start_time()

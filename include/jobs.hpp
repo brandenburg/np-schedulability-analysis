@@ -118,7 +118,7 @@ namespace NP {
 			          Time_model::constants<Time>::deadline_miss_tolerance();
 		}
 
-		unsigned long get_id() const
+		unsigned long get_job_id() const
 		{
 			return id.job;
 		}

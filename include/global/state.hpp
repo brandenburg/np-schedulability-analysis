@@ -231,7 +231,7 @@ namespace NP {
 					if (!first)
 						out << ", ";
 					out << "T" << jobs[rj.first].get_task_id()
-					    << "J" << jobs[rj.first].get_id() << ":"
+					    << "J" << jobs[rj.first].get_job_id() << ":"
 					    << rj.second.min() << "-" << rj.second.max();
 					first = false;
 				}

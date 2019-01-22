@@ -21,7 +21,7 @@ TEST_CASE("[dense time] job parser") {
 
 	NP::Job<dense_t> j = NP::parse_job<dense_t>(in);
 
-	CHECK(j.get_id() == 6);
+	CHECK(j.get_job_id() == 6);
 	CHECK(j.get_priority() == 1);
 	CHECK(j.get_deadline() == 60000);
 }
@@ -44,9 +44,9 @@ TEST_CASE("[dense time] file parser") {
 		CHECK(j.get_task_id() == 920);
 	}
 
-	CHECK(jobs[0].get_id() == 1);
-	CHECK(jobs[1].get_id() == 2);
-	CHECK(jobs[2].get_id() == 3);
+	CHECK(jobs[0].get_job_id() == 1);
+	CHECK(jobs[1].get_job_id() == 2);
+	CHECK(jobs[2].get_job_id() == 3);
 
 	CHECK(jobs[0].earliest_arrival() ==     0);
 	CHECK(jobs[1].earliest_arrival() == 10000);

@@ -90,7 +90,7 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 		for (const auto& j : jobs) {
 			Interval<Time> finish = space.get_finish_times(j);
 			rta << j.get_task_id() << ", "
-			    << j.get_id() << ", "
+			    << j.get_job_id() << ", "
 			    << finish.from() << ", "
 			    << finish.until() << ", "
 			    << std::max<long long>(0,
