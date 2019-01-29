@@ -50,6 +50,17 @@ namespace NP {
 		Interval<Time> cleanup_cost;
 	};
 
+
+	template<class Time>
+	void validate_abort_refs(const std::vector<Abort_action<Time>>& aborts,
+	                         const typename Job<Time>::Job_set jobs)
+	{
+		for (auto action : aborts) {
+			lookup<Time>(jobs, action.get_id());
+		}
+	}
+
+
 }
 
 #endif

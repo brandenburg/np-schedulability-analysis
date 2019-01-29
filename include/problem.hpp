@@ -49,6 +49,7 @@ namespace NP {
 		{
 			assert(num_processors > 0);
 			validate_prec_refs<Time>(dag, jobs);
+			validate_abort_refs<Time>(aborts, jobs);
 		}
 
 		// Convenience constructor: no DAG, no abort actions
