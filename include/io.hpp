@@ -8,6 +8,7 @@
 #include "time.hpp"
 #include "jobs.hpp"
 #include "precedence.hpp"
+#include "aborts.hpp"
 
 namespace NP {
 
@@ -144,6 +145,54 @@ namespace NP {
 
 		return jobs;
 	}
+
+	template<class Time>
+	Abort_action<Time> parse_abort_action(std::istream& in)
+	{
+		unsigned long tid, jid;
+		Time trig_min, trig_max, cleanup_min, cleanup_max;
+
+		std::ios_base::iostate state_before = in.exceptions();
+
+		in.exceptions(std::istream::failbit | std::istream::badbit);
+
+		in >> tid;
+		next_field(in);
+		in >> jid;
+		next_field(in);
+		in >> trig_min;
+		next_field(in);
+		in >> trig_max;
+		next_field(in);
+		in >> cleanup_min;
+		next_field(in);
+		in >> cleanup_max;
+
+		in.exceptions(state_before);
+
+		return Abort_action<Time>{JobID{jid, tid},
+		                          Interval<Time>{trig_min, trig_max},
+		                          Interval<Time>{cleanup_min, cleanup_max}};
+	}
+
+
+	template<class Time>
+	std::vector<Abort_action<Time>> parse_abort_file(std::istream& in)
+	{
+		// first row contains a comment, just skip it
+		next_line(in);
+
+		std::vector<Abort_action<Time>> abort_actions;
+
+		while (more_data(in)) {
+			abort_actions.push_back(parse_abort_action<Time>(in));
+			// munge any trailing whitespace or extra columns
+			next_line(in);
+		}
+
+		return abort_actions;
+	}
+
 
 }
 
