@@ -3,6 +3,7 @@
 
 #include "jobs.hpp"
 #include "precedence.hpp"
+#include "aborts.hpp"
 
 namespace NP {
 
@@ -11,18 +12,22 @@ namespace NP {
 	struct Scheduling_problem {
 
 		typedef typename Job<Time>::Job_set Workload;
+		typedef typename std::vector<Abort_action<Time>> Abort_actions;
 
 		// ** Description of the workload:
 		// (1) a set of jobs
 		Workload jobs;
 		// (2) a set of precedence constraints among the jobs
 		Precedence_constraints dag;
+		// (3) abort actions for (some of) the jobs
+		Abort_actions aborts;
 
 		// ** Platform model:
 		// on how many (identical) processors are the jobs being
 		// dispatched (globally, in priority order)
 		unsigned int num_processors;
 
+		// Classic default setup: no abort actions
 		Scheduling_problem(Workload jobs, Precedence_constraints dag,
 		                   unsigned int num_processors = 1)
 		: num_processors(num_processors)
@@ -33,7 +38,20 @@ namespace NP {
 			validate_prec_refs<Time>(dag, jobs);
 		}
 
-		// Convenience constructor: no DAG
+		// Full constructor with abort actions
+		Scheduling_problem(Workload jobs, Precedence_constraints dag,
+		                   Abort_actions aborts,
+		                   unsigned int num_processors)
+		: num_processors(num_processors)
+		, jobs(jobs)
+		, dag(dag)
+		, aborts(aborts)
+		{
+			assert(num_processors > 0);
+			validate_prec_refs<Time>(dag, jobs);
+		}
+
+		// Convenience constructor: no DAG, no abort actions
 		Scheduling_problem(Workload jobs,
 		                   unsigned int num_processors = 1)
 		: jobs(jobs)

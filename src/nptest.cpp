@@ -33,6 +33,9 @@ static bool want_cw_iip;
 static bool want_precedence = false;
 static std::string precedence_file;
 
+static bool want_aborts = false;
+static std::string aborts_file;
+
 static bool want_multiprocessor = false;
 static unsigned int num_processors = 1;
 
@@ -60,7 +63,10 @@ struct Analysis_result {
 };
 
 template<class Time, class Space>
-static Analysis_result analyze(std::istream &in, std::istream &dag_in)
+static Analysis_result analyze(
+	std::istream &in,
+	std::istream &dag_in,
+	std::istream &aborts_in)
 {
 #ifdef CONFIG_PARALLEL
 	tbb::task_scheduler_init init(
@@ -71,6 +77,7 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 	NP::Scheduling_problem<Time> problem{
 		NP::parse_file<Time>(in),
 		NP::parse_dag_file(dag_in),
+		NP::parse_abort_file<Time>(aborts_in),
 		num_processors};
 
 	// Set common analysis options
@@ -122,47 +129,58 @@ static Analysis_result analyze(std::istream &in, std::istream &dag_in)
 	};
 }
 
-static Analysis_result process_stream(std::istream &in, std::istream &dag_in)
+static Analysis_result process_stream(
+	std::istream &in,
+	std::istream &dag_in,
+	std::istream &aborts_in)
 {
 	if (want_multiprocessor && want_dense)
-		return analyze<dense_t, NP::Global::State_space<dense_t>>(in, dag_in);
+		return analyze<dense_t, NP::Global::State_space<dense_t>>(in, dag_in, aborts_in);
 	else if (want_multiprocessor && !want_dense)
-		return analyze<dtime_t, NP::Global::State_space<dtime_t>>(in, dag_in);
+		return analyze<dtime_t, NP::Global::State_space<dtime_t>>(in, dag_in, aborts_in);
 	else if (want_dense && want_prm_iip)
-		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Precatious_RM_IIP<dense_t>>>(in, dag_in);
+		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Precatious_RM_IIP<dense_t>>>(in, dag_in, aborts_in);
 	else if (want_dense && want_cw_iip)
-		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Critical_window_IIP<dense_t>>>(in, dag_in);
+		return analyze<dense_t, NP::Uniproc::State_space<dense_t, NP::Uniproc::Critical_window_IIP<dense_t>>>(in, dag_in, aborts_in);
 	else if (want_dense && !want_prm_iip)
-		return analyze<dense_t, NP::Uniproc::State_space<dense_t>>(in, dag_in);
+		return analyze<dense_t, NP::Uniproc::State_space<dense_t>>(in, dag_in, aborts_in);
 	else if (!want_dense && want_prm_iip)
-		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Precatious_RM_IIP<dtime_t>>>(in, dag_in);
+		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Precatious_RM_IIP<dtime_t>>>(in, dag_in, aborts_in);
 	else if (!want_dense && want_cw_iip)
-		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Critical_window_IIP<dtime_t>>>(in, dag_in);
+		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t, NP::Uniproc::Critical_window_IIP<dtime_t>>>(in, dag_in, aborts_in);
 	else
-		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t>>(in, dag_in);
+		return analyze<dtime_t, NP::Uniproc::State_space<dtime_t>>(in, dag_in, aborts_in);
 }
 
-static void process_file(const std::string& fname,
-                         const std::string& prec_dag_fname)
+static void process_file(const std::string& fname)
 {
 	try {
 		Analysis_result result;
 
 		auto empty_dag_stream = std::istringstream("\n");
+		auto empty_aborts_stream = std::istringstream("\n");
 		auto dag_stream = std::ifstream();
+		auto aborts_stream = std::ifstream();
 
 		if (want_precedence)
-			dag_stream.open(prec_dag_fname);
+			dag_stream.open(precedence_file);
+
+		if (want_aborts)
+			aborts_stream.open(aborts_file);
 
 		std::istream &dag_in = want_precedence ?
 			static_cast<std::istream&>(dag_stream) :
 			static_cast<std::istream&>(empty_dag_stream);
 
+		std::istream &aborts_in = want_aborts ?
+			static_cast<std::istream&>(aborts_stream) :
+			static_cast<std::istream&>(empty_aborts_stream);
+
 		if (fname == "-")
-			result = process_stream(std::cin, dag_in);
+			result = process_stream(std::cin, dag_in, aborts_in);
 		else {
 			auto in = std::ifstream(fname, std::ios::in);
-			result = process_stream(in, dag_in);
+			result = process_stream(in, dag_in, aborts_in);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 			if (want_dot_graph) {
 				std::string dot_name = fname;
@@ -212,10 +230,10 @@ static void process_file(const std::string& fname,
 	} catch (std::ios_base::failure& ex) {
 		std::cerr << fname;
 		if (want_precedence)
-			std::cerr << " + " << prec_dag_fname;
+			std::cerr << " + " << precedence_file;
 		std::cerr <<  ": parse error" << std::endl;
 	} catch (NP::InvalidJobReference& ex) {
-		std::cerr << prec_dag_fname << ": bad job reference: job "
+		std::cerr << precedence_file << ": bad job reference: job "
 		          << ex.ref.job << " of task " << ex.ref.task
 			      << " is not part of the job set given in "
 			      << fname
@@ -269,6 +287,10 @@ int main(int argc, char** argv)
 
 	parser.add_option("-p", "--precedence").dest("precedence_file")
 	      .help("name of the file that contains the job set's precedence DAG")
+	      .set_default("");
+
+	parser.add_option("-a", "--abort-actions").dest("abort_file")
+	      .help("name of the file that contains the job set's abort actions")
 	      .set_default("");
 
 	parser.add_option("-m", "--multiprocessor").dest("num_processors")
@@ -327,6 +349,15 @@ int main(int argc, char** argv)
 		          << "with a single precedence DAG specified."
 		          << std::endl;
 	}
+	precedence_file = (const std::string&) options.get("precedence_file");
+
+	want_aborts = options.is_set_by_user("abort_file");
+	if (want_aborts && parser.args().size() > 1) {
+		std::cerr << "[!!] Warning: multiple job sets "
+		          << "with a single abort action list specified."
+		          << std::endl;
+	}
+	aborts_file = (const std::string&) options.get("abort_file");
 
 	want_multiprocessor = options.is_set_by_user("num_processors");
 	num_processors = options.get("num_processors");
@@ -365,10 +396,10 @@ int main(int argc, char** argv)
 		print_header();
 
 	for (auto f : parser.args())
-		process_file(f, options.get("precedence_file"));
+		process_file(f);
 
 	if (parser.args().empty())
-		process_file("-", options.get("precedence_file"));
+		process_file("-");
 
 	return 0;
 }
