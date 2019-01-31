@@ -85,7 +85,7 @@ $ ./runtests
 
 ## Input Format
 
-The tool operates on CSV files with a fixed column order. There are two main input formats: *job sets* and *precedence constraints*. 
+The tool operates on CSV files with a fixed column order. There are three main input formats: *job sets*, *precedence constraints*, and *abort actions*. 
 
 ### Job Sets
 
@@ -114,6 +114,20 @@ A precedent constraints CSV files define a DAG on the set of jobs provided in a 
 4. **Successor job ID** - the job ID of the target of the edge
 
 An example precedent constraints file is provided in the `examples/` folder (e.g., [examples/fig1a.prec.csv](examples/fig1a.prec.csv)).
+
+
+### Abort Actions
+
+A file containing abort actions lists for (some of) the jobs comprising a workload a *trigger interval* and a *cleanup cost interval*, with the semantics that if a job is still executing during its trigger interval, the runtime system will trigger a cleanup routine that aborts and discards the job. Each row specifies the abort time and cost for one job. The following six columns are required.
+
+1. **Task ID** - the task ID of the job that has an abort action
+2. **Job ID** - the job ID of the job that has an abort action
+3. **Earliest Trigger Time** - the earliest time the abort action can trigger (= the job’s absolute deadline, usually)
+4. **Latest Trigger Time** - the latest time the abort action will trigger if the job is still running (= usually the job’s absolute deadline + any imprecision of the runtime environment in aborting jobs)
+5. **Least Cleanup Cost** - the minimum time required by the runtime system to abort the job
+6. **Maximum Cleanup Cost** - the maximum time required by the runtime system to abort the job
+
+An example abort actions file is provided in the `examples/` folder (e.g., [examples/abort.actions.csv](examples/abort.actions.csv)).
 
 ## Analyzing a Job Set
 
@@ -169,6 +183,24 @@ examples/fig1a.csv,  1,  9,  10,  9,  0,  0.000135,  1784.000000,  0,  1
 ```
 
 The tool does not check whether the provided structure actually forms a DAG. If a cycle is (accidentally) introduced, which essentially represents a deadlock as no job that is part of the cycle can be scheduled first, the analysis will simply discover and report that the workload is unschedulable. 
+
+### Aborting Jobs Past a Certain Point
+
+The uniprocessor analysis now also supports so-called **abort actions**, which allow specifying that if a job executes past a certain point in time, it will be forcefully stopped and discarded by the runtime environment. To enable this support, pass a CSV file containing a list of abort actions using the `-a` option. For example:
+
+```
+$ build/nptest -g examples/abort.jobs.csv -c -a examples/abort.actions.csv
+examples/abort.jobs.csv,  1,  4,  5,  4,  0,  0.000089,  1796.000000,  0,  1
+```
+
+**NOTE**: Aborted jobs are considered completed: thus if all tardy jobs are aborted by their deadline, then the tool will report the workload to be schedulable (as in the above example)! This can be observed by omitting the abort actions (`-a` option): 
+
+```
+$ build/nptest -g examples/abort.jobs.csv -c
+examples/abort.jobs.csv,  0,  4,  5,  4,  0,  0.000088,  1760.000000,  0,  1
+```
+
+Without the job abort action specified in [examples/abort.actions.csv](examples/abort.actions.csv), the workload can indeed miss deadlines and is thus unschedulable.
 
 ## Output Format
 
