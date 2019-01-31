@@ -33,6 +33,7 @@ namespace NP {
 
 			typedef Scheduling_problem<Time> Problem;
 			typedef typename Scheduling_problem<Time>::Workload Workload;
+			typedef typename Scheduling_problem<Time>::Abort_actions Abort_actions;
 			typedef Schedule_state<Time> State;
 
 			static State_space explore(
@@ -42,7 +43,7 @@ namespace NP {
 				// this is a uniprocessor analysis
 				assert(prob.num_processors == 1);
 
-				auto s = State_space(prob.jobs, prob.dag,
+				auto s = State_space(prob.jobs, prob.dag, prob.aborts,
 				                     opts.timeout, opts.max_depth,
 				                     opts.num_buckets, opts.early_exit);
 				s.cpu_time.start();
@@ -179,8 +180,6 @@ namespace NP {
 
 			typedef std::deque<State_ref> Todo_queue;
 
-			typedef Interval_lookup_table<Time, Job<Time>, Job<Time>::scheduling_window> Jobs_lut;
-
 			typedef std::unordered_map<JobID, Interval<Time> > Response_times;
 
 			typedef std::vector<std::size_t> Job_precedence_set;
@@ -205,6 +204,8 @@ namespace NP {
 			By_time_map jobs_by_earliest_arrival;
 			By_time_map jobs_by_deadline;
 
+			std::vector<const Abort_action<Time>*> abort_actions;
+
 			States states;
 			unsigned long num_states, num_edges, width;
 			States_map states_by_key;
@@ -225,6 +226,7 @@ namespace NP {
 
 			State_space(const Workload& jobs,
 			            const Precedence_constraints &dag_edges,
+			            const Abort_actions& aborts,
 			            double max_cpu_time = 0,
 			            unsigned int max_depth = 0,
 			            std::size_t num_buckets = 1000,
@@ -243,6 +245,7 @@ namespace NP {
 			, job_precedence_sets(jobs.size())
 			, early_exit(early_exit)
 			, observed_deadline_miss(false)
+			, abort_actions(jobs.size(), NULL)
 			{
 				for (const Job<Time>& j : jobs) {
 					jobs_by_latest_arrival.insert({j.latest_arrival(), &j});
@@ -253,6 +256,10 @@ namespace NP {
 					const Job<Time>& from = lookup<Time>(jobs, e.first);
 					const Job<Time>& to   = lookup<Time>(jobs, e.second);
 					job_precedence_sets[index_of(to)].push_back(index_of(from));
+				}
+				for (const Abort_action<Time>& a : aborts) {
+					const Job<Time>& j = lookup<Time>(jobs, a.get_id());
+					abort_actions[index_of(j)] = &a;
 				}
 			}
 
@@ -672,12 +679,53 @@ namespace NP {
 					   + j.maximal_cost();
 			}
 
+			Time next_earliest_job_abortion(const Abort_action<Time> &a)
+			{
+				return a.earliest_trigger_time() + a.least_cleanup_cost();
+			}
+
+			Time next_latest_job_abortion(const Abort_action<Time> &a)
+			{
+				return a.latest_trigger_time() + a.maximum_cleanup_cost();
+			}
+
 			Interval<Time> next_finish_times(const State &s, const Job<Time> &j)
 			{
-				return Interval<Time>{
-					next_earliest_finish_time(s, j),
-					next_latest_finish_time(s, j)
-				};
+				auto i = index_of(j);
+
+				if (abort_actions[i]) {
+					// complicated case -- need to take aborts into account
+
+					auto et = abort_actions[i]->earliest_trigger_time();
+
+					// Rule: if we're certainly past the trigger, the job is
+					//       completely skipped.
+
+					if (s.earliest_finish_time() >= et)
+						// job doesn't even start, is skipped immediately
+						return s.finish_range();
+
+					// Otherwise, it might start execution. Let's compute the
+					// regular and aborted completion times.
+
+					auto eft = next_earliest_finish_time(s, j);
+					auto lft = next_latest_finish_time(s, j);
+
+					auto eat = next_earliest_job_abortion(*abort_actions[i]);
+					auto lat = next_latest_job_abortion(*abort_actions[i]);
+
+					return Interval<Time>{
+						std::min(eft, eat),
+						std::min(lft, lat)
+					};
+
+				} else {
+					// standard case -- this job is never aborted or skipped
+					return Interval<Time>{
+						next_earliest_finish_time(s, j),
+						next_latest_finish_time(s, j)
+					};
+				}
 			}
 
 			void process_new_edge(
