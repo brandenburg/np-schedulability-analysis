@@ -27,6 +27,12 @@ template<class T> class Interval {
 	{
 	}
 
+	Interval(const Interval<T>& orig)
+	: a(orig.a)
+	, b(orig.b)
+	{
+	}
+
 	const T& from() const
 	{
 		return a;
