@@ -518,7 +518,7 @@ namespace NP {
 					DM("  --> not ready"  << std::endl);
 					return false;
 				}
-				auto t_s = s.next_earliest_start_time(j);
+				auto t_s = next_earliest_start_time(s, j);
 				if (!priority_eligible(s, j, t_s)) {
 					DM("  --> not prio eligible"  << std::endl);
 					return false;
@@ -629,34 +629,82 @@ namespace NP {
 #endif
 			}
 
-			// naive: no state merging
-			void schedule_naively(const State &s, const Job<Time> &j)
-			{
-				auto t_s = s.next_earliest_start_time(j);
+			//////////////////////////////////////
+			// Rules for finding the next state //
+			//////////////////////////////////////
 
+			Time next_earliest_start_time(const State &s, const Job<Time>& j)
+			{
+				// t_S in paper, see definition 6.
+				return std::max(s.earliest_finish_time(), j.earliest_arrival());
+			}
+
+			Time next_earliest_finish_time(const State &s, const Job<Time>& j)
+			{
+				Time earliest_start = next_earliest_start_time(s, j);
+
+				// e_k, equation 5
+				return earliest_start + j.least_cost();
+			}
+
+			// l_k, equation 6
+			Time next_latest_finish_time(
+				const State &s,
+				const Job<Time>& j)
+			{
 				Time other_certain_start =
 					next_certain_higher_priority_job_release(s, j);
-				Time iip_latest_start =
-					iip.latest_start(j, t_s, s);
 
-				// figure out when the next earliest release takes place
-				Time earliest_release = earliest_possible_job_release(s, j);
+				Time t_s = next_earliest_start_time(s, j);
 
-				DM("      nest = " << s.next_earliest_start_time(j) << std::endl);
-				DM("      other_certain_start = "
-				   << other_certain_start << std::endl);
-				// construct new state from s by scheduling j
+				Time iip_latest_start = iip.latest_start(j, t_s, s);
+
+				// t_s'
+				Time own_latest_start = std::max(s.latest_finish_time(),
+				                                 j.latest_arrival());
+
+				// t_R, t_I
+				Time last_start_before_other = std::min(
+					other_certain_start - Time_model::constants<Time>::epsilon(),
+					iip_latest_start);
+
+				return std::min(own_latest_start, last_start_before_other)
+					   + j.maximal_cost();
+			}
+
+			Interval<Time> next_finish_times(const State &s, const Job<Time> &j)
+			{
+				return Interval<Time>{
+					next_earliest_finish_time(s, j),
+					next_latest_finish_time(s, j)
+				};
+			}
+
+			void process_new_edge(
+				const State& from,
+				const State& to,
+				const Job<Time>& j,
+				const Interval<Time>& finish_range)
+			{
+				// update response times
+				update_finish_times(j, finish_range);
+				// update statistics
+				num_edges++;
+#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
+				edges.emplace_back(&j, &from, &to, finish_range);
+#endif
+			}
+
+			// naive: no state merging
+			void schedule_job(const State &s, const Job<Time> &j)
+			{
 				const State& next =
-					new_state(s, j, index_of(j), earliest_release,
-					          other_certain_start, iip_latest_start);
+					new_state(s, j, index_of(j),
+					          next_finish_times(s, j),
+					          earliest_possible_job_release(s, j));
 				DM("      -----> S" << (states.end() - states.begin())
 				   << std::endl);
-				// update response times
-				update_finish_times(j, next.finish_range());
-#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-				edges.emplace_back(&j, &s, &next, next.finish_range());
-#endif
-				num_edges++;
+				process_new_edge(s, next, j, next.finish_range());
 			}
 
 			void explore_naively()
@@ -697,7 +745,7 @@ namespace NP {
 						if (is_eligible_successor(s, j)) {
 							DM("  --> can be next "  << std::endl);
 							// create the relevant state and continue
-							schedule_naively(s, j);
+							schedule_job(s, j);
 							found_at_least_one = true;
 						}
 					}
@@ -722,50 +770,43 @@ namespace NP {
 
 			void schedule(const State &s, const Job<Time> &j)
 			{
+				Interval<Time> finish_range = next_finish_times(s, j);
+
 				auto k = s.next_key(j);
 
 				auto r = states_by_key.equal_range(k);
 
 				if (r.first != r.second) {
-					auto t_s = s.next_earliest_start_time(j);
-
-					Time other_certain_start =
-						next_certain_higher_priority_job_release(s, j);
-					Time iip_latest_start =
-						iip.latest_start(j, t_s, s);
-
-					State goal{s, j, index_of(j), 0, other_certain_start,
-					           iip_latest_start};
+					Job_set sched_jobs{s.get_scheduled_jobs(), index_of(j)};
 
 					for (auto it = r.first; it != r.second; it++) {
 						State &found = *it->second;
 
 						// key collision if the job sets don't match exactly
-						if (found.get_scheduled_jobs()
-						    != goal.get_scheduled_jobs())
+						if (found.get_scheduled_jobs() != sched_jobs)
 							continue;
 
 						// cannot merge without loss of accuracy if the
 						// intervals do not overlap
-						if (!goal.finish_range()
-						     .intersects(found.finish_range()))
+						if (!finish_range.intersects(found.finish_range()))
 							continue;
 
 						// great, we found a match and can merge the states
-						update_finish_times(j, goal.finish_range());
-						found.update_finish_range(goal.finish_range());
-#ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
-						edges.emplace_back(&j, &s, &(found),
-						                   goal.finish_range());
-#endif
-						num_edges++;
+						found.update_finish_range(finish_range);
+						process_new_edge(s, found, j, finish_range);
 						return;
 					}
 				}
 
 				// If we reach here, we didn't find a match and need to create
 				// a new state.
-				schedule_naively(s, j);
+				const State& next =
+					new_state(s, j, index_of(j),
+					          finish_range,
+					          earliest_possible_job_release(s, j));
+				DM("      -----> S" << (states.end() - states.begin())
+				   << std::endl);
+				process_new_edge(s, next, j, finish_range);
 			}
 
 			void explore()

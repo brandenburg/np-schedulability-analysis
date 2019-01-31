@@ -45,24 +45,14 @@ namespace NP {
 				const Schedule_state& from,
 				const Job<Time>& j,
 				std::size_t idx,
-				const Time next_earliest_release,
-				const Time other_certain_start,
-				const Time iip_latest_start)
-			: finish_time{from.next_earliest_finish_time(j),
-			              from.next_latest_finish_time(j, other_certain_start,
-			                                          iip_latest_start)}
+				Interval<Time> ftimes,
+				const Time next_earliest_release)
+			: finish_time{ftimes}
 			, scheduled_jobs{from.scheduled_jobs, idx}
 			, lookup_key{from.next_key(j)}
 			, earliest_pending_release{next_earliest_release}
 			{
-				DM("      cost: " << j.least_cost() << "--" << j.maximal_cost()
-				   <<  std::endl);
-				DM("      Other: " << other_certain_start << std::endl);
-				DM("      eft: " << finish_time.from() << " lft: "
-				   << finish_time.upto() << std::endl);
-				DM("      ER: " << earliest_pending_release << std::endl);
 			}
-
 
 			Time earliest_finish_time() const
 			{
@@ -104,37 +94,6 @@ namespace NP {
 			{
 				return lookup_key == other.lookup_key &&
 					   scheduled_jobs == other.scheduled_jobs;
-			}
-
-			// t_S in paper, see definition 6.
-			Time next_earliest_start_time(const Job<Time>& j) const
-			{
-				return std::max(earliest_finish_time(), j.earliest_arrival());
-			}
-
-			// e_k, equation 5
-			Time next_earliest_finish_time(const Job<Time>& j) const
-			{
-				return next_earliest_start_time(j) + j.least_cost();
-			}
-
-			// l_k, equation 6
-			Time next_latest_finish_time(
-				const Job<Time>& j,
-				const Time other_certain_start,
-				const Time iip_latest_start) const
-			{
-				// t_s'
-				auto own_latest_start = std::max(latest_finish_time(),
-												 j.latest_arrival());
-
-				// t_R, t_I
-				auto last_start_before_other = std::min(
-					other_certain_start - Time_model::constants<Time>::epsilon(),
-					iip_latest_start);
-
-				return std::min(own_latest_start, last_start_before_other)
-					   + j.maximal_cost();
 			}
 
 			hash_value_t next_key(const Job<Time>& j) const

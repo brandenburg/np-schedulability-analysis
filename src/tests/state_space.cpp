@@ -15,15 +15,6 @@ TEST_CASE("[NP state space] Find all next jobs") {
 		Job<dtime_t>{3, I(10, 10), I(1, 11),  100, 3},
 	};
 
-	SUBCASE("State evolution") {
-		Uniproc::Schedule_state<dtime_t> v1;
-
-		Uniproc::Schedule_state<dtime_t> v2{v1, jobs[1], 1, 0, inf, inf};
-
-		CHECK(v2.earliest_finish_time() == 12);
-		CHECK(v2.latest_finish_time() == 12);
-	}
-
 	SUBCASE("Naive exploration") {
 		auto space = Uniproc::State_space<dtime_t>::explore_naively(jobs);
 		CHECK(space.is_schedulable());
