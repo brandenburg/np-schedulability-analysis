@@ -1,14 +1,18 @@
 # NP Schedulability Test
 
-This repository contains the implementations of schedulability tests for **sets of non-preemptive jobs** scheduled on **uniprocessors** or **globally scheduled multiprocessors**. The analyses are described in the following papers:
+This repository contains the implementations of schedulability tests for **sets of non-preemptive jobs** with **precedence constraints** scheduled on either **uniprocessors** or **globally scheduled identical multiprocessors**. The analyses are described in the following papers:
 
 - M. Nasri and B. Brandenburg, “[An Exact and Sustainable Analysis of Non-Preemptive Scheduling](https://people.mpi-sws.org/~bbb/papers/pdf/rtss17.pdf)”, *Proceedings of the 38th IEEE Real-Time Systems Symposium (RTSS 2017)*, pp. 12–23, December 2017.
-- M. Nasri, G. Nelissen, and B. Brandenburg, “[A Response-Time Analysis for Non-Preemptive Job Sets under Global Scheduling](http://drops.dagstuhl.de/opus/volltexte/2018/8994/pdf/LIPIcs-ECRTS-2018-9.pdf)”, Proceedings of the 30th Euromicro Conference on Real-Time Systems (ECRTS 2018), pp. 9:1–9:23, July 2018.
+- M. Nasri, G. Nelissen, and B. Brandenburg, “[Response-Time Analysis of Limited-Preemptive Parallel DAG Tasks under Global Scheduling](http://drops.dagstuhl.de/opus/volltexte/2019/10758/pdf/LIPIcs-ECRTS-2019-21.pdf)”, *Proceedings of the 31st Euromicro Conference on Real-Time Systems (ECRTS 2019)*, pp. 21:1–21:23, July 2019.
 
-- M. Nasri, G. Nelissen, and B. Brandenburg, “[A Response-Time Analysis for Non-Preemptive Job Sets under Global Scheduling](http://drops.dagstuhl.de/opus/frontdoor.php?source_opus=8994)”, *Proceedings of the 30th Euromicro Conference on Real-Time Systems (ECRTS 2018)*, July 2018.
+An [earlier version of this tool](https://github.com/brandenburg/np-schedulability-analysis/releases/tag/ECRTS18-last) (i.e., up to tag [`ECRTS18-last`](https://github.com/brandenburg/np-schedulability-analysis/releases/tag/ECRTS18-last)) implemented the analysis for independent jobs on globally scheduled multiprocessors presented at ECRTS'18.
+
+- M. Nasri, G. Nelissen, and B. Brandenburg,  
+“[A Response-Time Analysis for Non-Preemptive Job Sets under Global Scheduling](http://drops.dagstuhl.de/opus/volltexte/2018/8994/pdf/LIPIcs-ECRTS-2018-9.pdf)”,  
+*Proceedings of the 30th Euromicro Conference on Real-Time Systems (ECRTS 2018)*, pp. 9:1–9:23, July 2018.
 
 
-The uniprocessor analysis (Nasri & Brandenburg, 2017) is exact; the multiprocessor analysis (Nasri et al., 2018) is not. 
+The uniprocessor analysis (Nasri & Brandenburg, 2017) is exact (in the absence of precedence constraints); the multiprocessor analyses (Nasri et al., 2018, 2019) are not. 
 
 ## Dependencies
 
@@ -20,7 +24,7 @@ The uniprocessor analysis (Nasri & Brandenburg, 2017) is exact; the multiprocess
 
 - The [Intel Thread Building Blocks (TBB)](https://www.threadingbuildingblocks.org) library and parallel runtime. 
 
-- The [jemalloc](http://jemalloc.net) scalable memory allocator. Alternatively, the TBB allocator can be used instead, see build options below.
+- The [jemalloc](http://jemalloc.net) scalable memory allocator. Alternatively, the TBB allocator can be used instead; see build options below.
 
 ## Build Instructions
 
