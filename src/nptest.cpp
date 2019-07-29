@@ -232,14 +232,23 @@ static void process_file(const std::string& fname)
 		if (want_precedence)
 			std::cerr << " + " << precedence_file;
 		std::cerr <<  ": parse error" << std::endl;
+		exit(1);
 	} catch (NP::InvalidJobReference& ex) {
 		std::cerr << precedence_file << ": bad job reference: job "
 		          << ex.ref.job << " of task " << ex.ref.task
 			      << " is not part of the job set given in "
 			      << fname
 			      << std::endl;
+		exit(3);
+	} catch (NP::InvalidAbortParameter& ex) {
+		std::cerr << aborts_file << ": invalid abort parameter: job "
+		          << ex.ref.job << " of task " << ex.ref.task
+			      << " has an impossible abort time (abort before release)"
+			      << std::endl;
+		exit(4);
 	} catch (std::exception& ex) {
 		std::cerr << fname << ": '" << ex.what() << "'" << std::endl;
+		exit(1);
 	}
 }
 

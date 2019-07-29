@@ -50,13 +50,32 @@ namespace NP {
 		Interval<Time> cleanup_cost;
 	};
 
+	class InvalidAbortParameter : public std::exception
+	{
+		public:
+
+		InvalidAbortParameter(const JobID& bad_id)
+		: ref(bad_id)
+		{}
+
+		const JobID ref;
+
+		virtual const char* what() const noexcept override
+		{
+			return "invalid abort parameter";
+		}
+
+	};
 
 	template<class Time>
 	void validate_abort_refs(const std::vector<Abort_action<Time>>& aborts,
 	                         const typename Job<Time>::Job_set jobs)
 	{
 		for (auto action : aborts) {
-			lookup<Time>(jobs, action.get_id());
+			auto job = lookup<Time>(jobs, action.get_id());
+			if (action.earliest_trigger_time() < job.earliest_arrival() ||
+			    action.latest_trigger_time() < job.latest_arrival())
+				throw InvalidAbortParameter(action.get_id());
 		}
 	}
 
