@@ -22,17 +22,18 @@ if (COLLECT_SCHEDULE_GRAPHS)
     add_compile_definitions(CONFIG_COLLECT_SCHEDULE_GRAPH)
 endif()
 
-set(TBB_LIB "tbb")
-set(JEMALLOC_LIB "jemalloc")
-set(TBB_ALLOC_LIB "tbbmalloc_proxy")
+find_path(TBB_INCLUDE_DIR NAMES tbb/task_scheduler_init.h)
+find_library(TBB_LIB NAMES tbb)
 
 if(USE_JE_MALLOC)
-  set(ALLOC_LIB ${JEMALLOC_LIB})
+  find_library(ALLOC_LIB NAMES jemalloc)
 elseif(USE_TBB_MALLOC)
-  set(ALLOC_LIB ${TBB_ALLOC_LIB})
+  find_library(TBB_ALLOC tbbmalloc_proxy)
 endif()
 
 set(CORE_LIBS ${TBB_LIB} ${ALLOC_LIB})
+
+include_directories(${TBB_INCLUDE_DIR})
 
 file(GLOB TEST_SOURCES "src/tests/*.cpp")
 add_executable(runtests ${TEST_SOURCES} ${SOURCES})
