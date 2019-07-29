@@ -420,6 +420,9 @@ namespace NP {
 					// skip reference job
 					if (&j == &reference_job)
 						continue;
+					// ignore jobs that aren't yet ready
+					if (!ready(s, j))
+						continue;
 					// check priority
 					if (j.higher_priority_than(reference_job)) {
 						DM("          => found one: " << j << " <<HP<< "
