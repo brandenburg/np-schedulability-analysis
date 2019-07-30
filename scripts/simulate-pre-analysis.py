@@ -197,7 +197,7 @@ def simulate(idx, dir, jobset, actions, nptest, extra_args):
     # invoke schedulability analysis
     return run_analysis(nptest, jobset_name, actions_name, extra_args)
 
-def simulate_variants(orig_jobs, variants, nptest, extra_args):
+def simulate_variants(orig_jobs, variants, nptest, timeout, extra_args):
 #     dir = '/tmp/debug'
 #     if True:
    with tempfile.TemporaryDirectory() as dir:
@@ -209,7 +209,7 @@ def simulate_variants(orig_jobs, variants, nptest, extra_args):
                                         extra_args))
 
         for sim in simulations:
-            sim.wait(5)
+            sim.wait(timeout)
             assert sim.returncode is 0
 
         results = load_analysis_results(dir, 1)
@@ -255,6 +255,11 @@ def parse_args():
                         action='store', type=int,
                         help='how many random releases to try (default: 100)')
 
+    parser.add_argument('-t', '--timeout', default=100,
+                        action='store', type=int,
+                        help='how long may a simulation take (in seconds, '
+                             'default: 60s)')
+
     parser.add_argument('--nptest', default='nptest',
                         action='store',
                         metavar='BINARY',
@@ -279,7 +284,8 @@ def main():
     debug_invocations = opts.debug
 
     variants = create_variants(jobs, acts, opts.num_random_releases)
-    results = simulate_variants(jobs, variants, opts.nptest, opts.extra_args)
+    results = simulate_variants(jobs, variants, opts.nptest, opts.timeout,
+                                opts.extra_args)
 
     out = csv.DictWriter(opts.output, ANALYSIS_COLS)
     out.writeheader()
