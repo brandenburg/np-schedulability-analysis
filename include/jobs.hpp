@@ -26,6 +26,12 @@ namespace NP {
 		{
 			return this->task == other.task && this->job == other.job;
 		}
+
+		friend std::ostream& operator<< (std::ostream& stream, const JobID& id)
+		{
+			stream << "T" << id.task << "J" << id.job;
+			return stream;
+		}
 	};
 
 	template<class Time> class Job {
