@@ -403,8 +403,6 @@ TEST_CASE("[global] explore across bucket boundaries") {
 	auto space = NP::Global::State_space<dtime_t>::explore(prob, opts);
 	CHECK(space.is_schedulable());
 
-	//std::cout << space << std::endl;
-
 	CHECK(space.number_of_edges() == 3);
 }
 

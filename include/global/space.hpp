@@ -756,11 +756,13 @@ namespace NP {
 				<< "t_core: " << t_core << std::endl
 				<< "t_wc: " << t_wc << std::endl);
 
+				DM("==== [1] ====" << std::endl);
 				// (1) first check jobs that may be already pending
 				for (const Job<Time>& j : jobs_by_win.lookup(t_min))
-					if (ready(s, j))
+					if (j.earliest_arrival() <= t_min && ready(s, j))
 						found_one |= dispatch(s, j, t_wc);
 
+				DM("==== [2] ====" << std::endl);
 				// (2) check jobs that are released only later in the interval
 				for (auto it = jobs_by_earliest_arrival.upper_bound(t_min);
 					 it != jobs_by_earliest_arrival.end();
