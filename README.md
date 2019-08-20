@@ -42,7 +42,7 @@ To compile the tool, first generate an appropriate `Makefile` with `cmake` and t
 The last step yields two binaries:
 
 - `nptest`, the actually schedulability analysis tool, and
-- `runtests`, the unit test suite. 
+- `runtests`, the unit-test suite. 
 
 ## Build Options
 
@@ -72,16 +72,13 @@ The tool comes with a test driver (based on [C++ doctest](https://github.com/onq
 
 ```
 $ ./runtests 
-[doctest] doctest version is "1.2.1"
+[doctest] doctest version is "1.2.6"
 [doctest] run with "--help" for options
 ===============================================================================
-[doctest] test cases:     27 |     27 passed |      0 failed |      0 skipped
-[doctest] assertions:    260 |    260 passed |      0 failed |
+[doctest] test cases:     57 |     57 passed |      0 failed |      0 skipped
+[doctest] assertions:    537 |    537 passed |      0 failed |
 [doctest] Status: SUCCESS!
 ```
-
-**Note**: the multiprocessor analysis currently fails two tests because it is only sound, but not precise. This is known and ok.
-
 
 ## Input Format
 
