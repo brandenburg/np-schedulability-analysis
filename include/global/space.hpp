@@ -774,7 +774,8 @@ namespace NP {
 						break;
 
 					// Job could be not ready due to precedence constraints
-					if (!ready(s, j)) continue;
+					if (!ready(s, j))
+						continue;
 
 					// Since this job is released in the future, it better
 					// be incomplete...
