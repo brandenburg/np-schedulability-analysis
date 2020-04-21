@@ -49,6 +49,19 @@ const std::string ts2_edges =
 "       1,       13,        1,       15\n"
 "       1,       14,        1,       15\n";
 
+const std::string ts3_jobs =
+"Task ID, Job ID, Arrival min, Arrival max, Cost min, Cost max, Deadline, Priority\n"
+"      0,      0,          10,          10,       80,       80,      110,        2\n"
+"      1,      0,         200,         200,       20,       20,     8000,        4\n"
+"      2,      0,         200,         200,       20,       20,     8000,        5\n"
+"      3,      0,         200,         200,       40,       40,     8000,        3\n"
+"      0,      1,         210,         210,       80,       80,     310,         2\n";
+
+const std::string ts3_edges =
+"From TID, From JID,   To TID,   To JID\n"
+"       1,        0,        2,        0\n"
+"       2,        0,        3,        0\n";
+
 TEST_CASE("[global-prec] taskset-1") {
 	auto dag_in = std::istringstream(ts1_edges);
 	auto dag = NP::parse_dag_file(dag_in);
@@ -130,4 +143,21 @@ TEST_CASE("[global-prec] taskset-2") {
 		if (j.least_cost() != 0)
 			CHECK(nspace3.get_finish_times(j).from() != 0);
 	}
+}
+
+TEST_CASE("[global-prec] taskset-3") {
+	auto dag_in = std::istringstream(ts3_edges);
+	auto dag = NP::parse_dag_file(dag_in);
+
+	auto in = std::istringstream(ts3_jobs);
+	auto jobs = NP::parse_file<dtime_t>(in);
+
+	NP::Scheduling_problem<dtime_t> prob{jobs, dag};
+	NP::Analysis_options opts;
+
+	prob.num_processors = 1;
+	opts.be_naive = false;
+	auto space = NP::Global::State_space<dtime_t>::explore(prob, opts);
+
+	CHECK(space.is_schedulable());
 }
