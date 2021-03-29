@@ -372,30 +372,30 @@ namespace NP {
 
 // define a couple of iteration helpers
 
-// Iterate over all incomplete jobs in state __s.
-// __j is of type const Job<Time>*
-#define foreach_possibly_pending_job(__s, __j) 	\
-	for (auto __it = jobs_by_earliest_arrival			\
-                     .lower_bound((__s).earliest_job_release()); \
-	     __it != jobs_by_earliest_arrival.end() 				\
-	        && (__j = __it->second); 	\
-	     __it++) \
-		if (incomplete(__s, *__j))
+// Iterate over all incomplete jobs in state ppj_macro_local_s.
+// ppj_macro_local_j is of type const Job<Time>*
+#define foreach_possibly_pending_job(ppj_macro_local_s, ppj_macro_local_j) 	\
+	for (auto ppj_macro_local_it = jobs_by_earliest_arrival			\
+                     .lower_bound((ppj_macro_local_s).earliest_job_release()); \
+	     ppj_macro_local_it != jobs_by_earliest_arrival.end() 				\
+	        && (ppj_macro_local_j = ppj_macro_local_it->second); 	\
+	     ppj_macro_local_it++) \
+		if (incomplete(ppj_macro_local_s, *ppj_macro_local_j))
 
-// Iterate over all incomplete jobs that are released no later than __until
-#define foreach_possbly_pending_job_until(__s, __j, __until) 	\
-	for (auto __it = jobs_by_earliest_arrival			\
-                     .lower_bound((__s).earliest_job_release()); \
-	     __it != jobs_by_earliest_arrival.end() 				\
-	        && (__j = __it->second, __j->earliest_arrival() <= (__until)); 	\
-	     __it++) \
-		if (incomplete(__s, *__j))
+// Iterate over all incomplete jobs that are released no later than ppju_macro_local_until
+#define foreach_possbly_pending_job_until(ppju_macro_local_s, ppju_macro_local_j, ppju_macro_local_until) 	\
+	for (auto ppju_macro_local_it = jobs_by_earliest_arrival			\
+                     .lower_bound((ppju_macro_local_s).earliest_job_release()); \
+	     ppju_macro_local_it != jobs_by_earliest_arrival.end() 				\
+	        && (ppju_macro_local_j = ppju_macro_local_it->second, ppju_macro_local_j->earliest_arrival() <= (ppju_macro_local_until)); 	\
+	     ppju_macro_local_it++) \
+		if (incomplete(ppju_macro_local_s, *ppju_macro_local_j))
 
 // Iterare over all incomplete jobs that are certainly released no later than
-// __until
-#define foreach_certainly_pending_job_until(__s, __j, __until) \
-	foreach_possbly_pending_job_until(__s, __j, (__until)) \
-		if (__j->latest_arrival() <= (__until))
+// cpju_macro_local_until
+#define foreach_certainly_pending_job_until(cpju_macro_local_s, cpju_macro_local_j, cpju_macro_local_until) \
+	foreach_possbly_pending_job_until(cpju_macro_local_s, cpju_macro_local_j, (cpju_macro_local_until)) \
+		if (cpju_macro_local_j->latest_arrival() <= (cpju_macro_local_until))
 
 			// returns true if there is certainly some pending job of higher
 			// priority at the given time ready to be scheduled
