@@ -101,6 +101,44 @@ TEST_CASE("[IIP] P-RM negative example (Figure 2)")
 
 }
 
+TEST_CASE("[IIP] P-RM example extra branch")
+{
+    Uniproc::State_space<dtime_t>::Workload jobs{
+        Job<dtime_t>{0, I( 1,  1), I(1, 1), 3, 0, 0},
+        Job<dtime_t>{1, I(4, 4), I(1, 1), 6, 0, 0},
+        Job<dtime_t>{2, I( 0,  0), I(1, 2), 3, 1, 1},
+        Job<dtime_t>{3, I(2, 2), I(3, 3), 6, 2, 2},
+        };
+
+    SUBCASE("RM, naive exploration") {
+        auto space = Uniproc::State_space<dtime_t>::explore_naively(jobs);
+        CHECK(!space.is_schedulable());
+        CHECK(space.number_of_states() == 5);
+        CHECK(space.number_of_edges() == 4);
+    }
+
+    SUBCASE("RM, exploration with state-merging") {
+        auto space = Uniproc::State_space<dtime_t>::explore(jobs);
+        CHECK(!space.is_schedulable());
+        CHECK(space.number_of_states() == 5);
+        CHECK(space.number_of_edges() == 4);
+    }
+
+    SUBCASE("P-RM, naive exploration") {
+        auto space = Uniproc::State_space<dtime_t, Uniproc::Precatious_RM_IIP<dtime_t>>::explore_naively(jobs);
+        CHECK(!space.is_schedulable());
+        CHECK(space.number_of_states() == 7);
+        CHECK(space.number_of_edges() == 6);
+    }
+
+    SUBCASE("P-RM, exploration with state-merging") {
+        auto space = Uniproc::State_space<dtime_t, Uniproc::Precatious_RM_IIP<dtime_t>>::explore(jobs);
+        CHECK(!space.is_schedulable());
+        CHECK(space.number_of_states() == 7);
+        CHECK(space.number_of_edges() == 6);
+    }
+
+}
 
 // The example in Fig 2b of Nasri & Fohler (ECRTS 2016):
 //    "Non-Work-Conserving Non-Preemptive Scheduling:
