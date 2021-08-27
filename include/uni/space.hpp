@@ -326,14 +326,14 @@ namespace NP {
 					// If the job is not IIP-eligible when it is certainly
 					// released, then there exists a schedule where it doesn't
 					// count, so skip it.
-					if (!iip_eligible(s, j, j.latest_arrival()))
+					if (!iip_eligible(s, j, std::max(j.latest_arrival(), s.latest_finish_time())))
 						continue;
 
 					// It must be priority-eligible when released, too.
 					// Relevant only if we have an IIP, otherwise the job is
 					// trivially priority-eligible.
 					if (iip.can_block &&
-					    !priority_eligible(s, j, j.latest_arrival()))
+					    !priority_eligible(s, j, std::max(j.latest_arrival(), s.latest_finish_time())))
 						continue;
 
 					// great, this job fits the bill
@@ -496,9 +496,6 @@ namespace NP {
 				// job is trivially potentially next, so check the other case.
 
 				if (t_latest < j.earliest_arrival()) {
-					if (exists_certainly_pending_job(s))
-						return false;
-
 					Time r = next_certain_job_release(s);
 					// if something else is certainly released before j and IIP-
 					// eligible at the time of certain release, then j can't
@@ -795,10 +792,10 @@ namespace NP {
 					// Identify relevant interval for next job
 					// relevant job buckets
 					auto ts_min = s.earliest_finish_time();
-					auto latest_idle = next_certain_job_release(s);
+					auto rel_min = s.earliest_job_release();
+					auto t_l = std::max(next_eligible_job_ready(s), s.latest_finish_time());
 
-					Interval<Time> next_range{ts_min,
-					    std::max(latest_idle, s.latest_finish_time())};
+					Interval<Time> next_range{std::min(ts_min, rel_min), t_l};
 
 					DM("ts_min = " << ts_min << std::endl <<
 					   "latest_idle = " << latest_idle << std::endl <<
@@ -898,10 +895,9 @@ namespace NP {
 					// relevant job buckets
 					auto ts_min = s.earliest_finish_time();
 					auto rel_min = s.earliest_job_release();
-					auto latest_idle = next_certain_job_release(s);
+					auto t_l = std::max(next_eligible_job_ready(s), s.latest_finish_time());
 
-					Interval<Time> next_range{ts_min,
-					    std::max(latest_idle, s.latest_finish_time())};
+					Interval<Time> next_range{std::min(ts_min, rel_min), t_l};
 
 					DM("ts_min = " << ts_min << std::endl <<
 					   "rel_min = " << rel_min << std::endl <<
