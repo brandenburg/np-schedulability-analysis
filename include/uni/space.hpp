@@ -657,6 +657,26 @@ namespace NP {
 				return earliest_start + j.least_cost();
 			}
 
+			Time next_eligible_job_ready(const State& s) {
+			    const Scheduled& already_scheduled = s.get_scheduled_jobs();
+
+			    for (auto it = jobs_by_latest_arrival.begin(); it != jobs_by_latest_arrival.end(); it++) {
+			        const Job<Time>& j = *(it->second);
+
+			        // not relevant if already scheduled
+			        if (!incomplete(already_scheduled, j))
+			            continue;
+
+			        auto t = std::max(j.latest_arrival(), s.latest_finish_time());
+
+			        if (priority_eligible(s, j, t) && iip_eligible(s, j, t))
+			            return j.latest_arrival();
+
+			    }
+
+			    return Time_model::constants<Time>::infinity();
+			}
+
 			// l_k, equation 6
 			Time next_latest_finish_time(
 				const State &s,
@@ -670,8 +690,9 @@ namespace NP {
 				Time iip_latest_start = iip.latest_start(j, t_s, s);
 
 				// t_s'
+				// t_L
 				Time own_latest_start = std::max(s.latest_finish_time(),
-				                                 j.latest_arrival());
+                                                 next_eligible_job_ready(s));
 
 				// t_R, t_I
 				Time last_start_before_other = std::min(
