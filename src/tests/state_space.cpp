@@ -376,3 +376,24 @@ TEST_CASE("[NP state space] explore across bucket boundaries") {
 	CHECK(space.number_of_edges() == 3);
 }
 
+TEST_CASE("[NP state space] start times satisfy work-conserving property")
+{
+    Job<dtime_t> j0{0, I( 0,  0), I(2, 2), 10, 2, 0};
+    Job<dtime_t> j1{1, I(0, 8), I(2, 2), 10, 1, 1};
+
+    Uniproc::State_space<dtime_t>::Workload jobs{j0, j1};
+
+    SUBCASE("naive exploration") {
+        auto space = Uniproc::State_space<dtime_t>::explore_naively(jobs);
+        CHECK(space.is_schedulable());
+        CHECK(space.get_finish_times(j0) == I(2, 4));
+        CHECK(space.get_finish_times(j1) == I(2, 10));
+    }
+
+    SUBCASE("exploration with state-merging") {
+        auto space = Uniproc::State_space<dtime_t>::explore(jobs);
+        CHECK(space.is_schedulable());
+        CHECK(space.get_finish_times(j0) == I(2, 4));
+        CHECK(space.get_finish_times(j1) == I(2, 10));
+    }
+}
