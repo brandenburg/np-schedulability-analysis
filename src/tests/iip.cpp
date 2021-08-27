@@ -193,7 +193,6 @@ TEST_CASE("[IIP] CW-EDF extra example")
 
 }
 
-
 TEST_CASE("[IIP] P-RM idle time")
 {
 	Uniproc::State_space<dtime_t>::Workload jobs{
