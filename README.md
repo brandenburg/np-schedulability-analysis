@@ -235,8 +235,17 @@ Note that the analysis by default aborts after finding the first deadline miss, 
 
 ## Questions, Patches, or Suggestions
 
-In case of questions, please contact [Björn Brandenburg](https://people.mpi-sws.org/~bbb/) (bbb at  mpi-sws dot org).
+In case of questions, please contact [Geoffrey Nelissen](https://www.tue.nl/en/research/researchers/geoffrey-nelissen/), the current maintainer of the project.
 
 Patches and feedback welcome — please send a pull request or open a ticket. 
 
+## License 
 
+The code is released under a 3-clause BSD license. 
+
+
+## Credits
+
+The software was originally developed by [Björn Brandenburg](https://people.mpi-sws.org/~bbb/). Joan Marcè and Sayra Ranjha contributed analysis improvements. It is now being maintained by [Geoffrey Nelissen](https://www.tue.nl/en/research/researchers/geoffrey-nelissen/).
+
+When using this software in academic work, please cite the papers listed at the top of this file. 
