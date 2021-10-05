@@ -1,6 +1,17 @@
-# NP Schedulability Test
 
-This repository contains the implementations of schedulability tests for **sets of non-preemptive jobs** with **precedence constraints** scheduled on either **uniprocessors** or **globally scheduled identical multiprocessors**. The analyses are described in the following papers:
+# NP Schedulability Test (2017–2021)
+
+
+## Deprecation Warning
+
+As of 2021, this repository is no longer being maintained. **This version is outdated.** 
+
+The implementation of the *schedule-abstraction graph* (SAG) method is **now maintained by Geoffrey Nelissen** (TU Eindhoven). For the latest version, please refer to [his forked repository](https://github.com/gnelissen/np-schedulability-analysis).
+
+
+## Old Description
+
+This repository contained the implementations of schedulability tests for **sets of non-preemptive jobs** with **precedence constraints** scheduled on either **uniprocessors** or **globally scheduled identical multiprocessors**. The analyses are described in the following papers:
 
 - M. Nasri and B. Brandenburg, “[An Exact and Sustainable Analysis of Non-Preemptive Scheduling](https://people.mpi-sws.org/~bbb/papers/pdf/rtss17.pdf)”, *Proceedings of the 38th IEEE Real-Time Systems Symposium (RTSS 2017)*, pp. 12–23, December 2017.
 - M. Nasri, G. Nelissen, and B. Brandenburg, “[Response-Time Analysis of Limited-Preemptive Parallel DAG Tasks under Global Scheduling](http://drops.dagstuhl.de/opus/volltexte/2019/10758/pdf/LIPIcs-ECRTS-2019-21.pdf)”, *Proceedings of the 31st Euromicro Conference on Real-Time Systems (ECRTS 2019)*, pp. 21:1–21:23, July 2019.
